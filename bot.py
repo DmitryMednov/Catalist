@@ -361,10 +361,26 @@ async def confirm_submit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     app_id = save_application(d)
 
+    # Send application copy to the user for their records
+    user_copy = (
+        f"Your application #{app_id}\n\n"
+        f"Clinic: {d['clinic']}\n"
+        f"Procedure: {d['procedure']}\n"
+        f"Cost: {d['cost']}\n"
+        f"Name: {d['first_name']} {d['last_name']}\n"
+        f"Phone: {d['phone']}\n"
+        f"Email: {d['email']}\n"
+        f"Details: {d['comment']}"
+    )
+    await update.message.reply_photo(
+        photo=d["photo_file_id"],
+        caption=user_copy,
+    )
+
     await update.message.reply_text(
         f"Application #{app_id} has been submitted for review.\n\n"
         "We will notify you of the decision. "
-        "Review typically takes 1–3 business days.\n\n"
+        "Review typically takes a few hours.\n\n"
         "Thank you for caring about the animal.",
         reply_markup=MAIN_MENU,
     )

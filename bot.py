@@ -44,7 +44,7 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_CHAT_IDS = [
     int(x.strip()) for x in os.environ.get("ADMIN_CHAT_IDS", "").split(",") if x.strip()
 ]
-REVIEW_CHAT_ID = int(os.environ["REVIEW_CHAT_ID"])
+# REVIEW_CHAT_ID is no longer used; admin notifications go to ADMIN_CHAT_IDS directly
 
 MAX_GRANT_EUR = 100
 GRANT_OPTIONS = [20, 40, 60, 80, 100]
@@ -450,15 +450,16 @@ async def confirm_submit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ]
     )
 
-    try:
-        await context.bot.send_photo(
-            chat_id=REVIEW_CHAT_ID,
-            photo=d["photo_file_id"],
-            caption=admin_text,
-            reply_markup=keyboard,
-        )
-    except Exception as e:
-        logger.error("Failed to send application to review chat: %s", e)
+    for admin_id in ADMIN_CHAT_IDS:
+        try:
+            await context.bot.send_photo(
+                chat_id=admin_id,
+                photo=d["photo_file_id"],
+                caption=admin_text,
+                reply_markup=keyboard,
+            )
+        except Exception as e:
+            logger.error("Failed to send application to admin %s: %s", admin_id, e)
 
     context.user_data.clear()
     return ConversationHandler.END
@@ -547,13 +548,16 @@ async def admin_grant_sum_selected(update: Update, context: ContextTypes.DEFAULT
 
     if app:
         try:
+            clinic_name = app.get("clinic", "the selected clinic")
             await context.bot.send_message(
                 chat_id=app["chat_id"],
                 text=(
-                    f"Application #{app_id} approved.\n\n"
+                    f"Application #{app_id} approved!\n\n"
                     f"Catalist will cover the treatment cost "
                     f"in the amount of €{approved_sum}.\n\n"
-                    "We will contact you to arrange the details."
+                    f"Please proceed to the reception desk at "
+                    f"{clinic_name} and present this message.\n\n"
+                    "Thank you for caring about the animal."
                 ),
             )
         except Exception as e:

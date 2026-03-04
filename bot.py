@@ -44,7 +44,7 @@ BOT_TOKEN = os.environ["BOT_TOKEN"]
 ADMIN_CHAT_IDS = [
     int(x.strip()) for x in os.environ.get("ADMIN_CHAT_IDS", "").split(",") if x.strip()
 ]
-# REVIEW_CHAT_ID is no longer used; admin notifications go to ADMIN_CHAT_IDS directly
+REVIEW_CHAT_ID = int(os.environ["REVIEW_CHAT_ID"])
 
 MAX_GRANT_EUR = 100
 GRANT_OPTIONS = [20, 40, 60, 80, 100]
@@ -450,16 +450,15 @@ async def confirm_submit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         ]
     )
 
-    for admin_id in ADMIN_CHAT_IDS:
-        try:
-            await context.bot.send_photo(
-                chat_id=admin_id,
-                photo=d["photo_file_id"],
-                caption=admin_text,
-                reply_markup=keyboard,
-            )
-        except Exception as e:
-            logger.error("Failed to send application to admin %s: %s", admin_id, e)
+    try:
+        await context.bot.send_photo(
+            chat_id=REVIEW_CHAT_ID,
+            photo=d["photo_file_id"],
+            caption=admin_text,
+            reply_markup=keyboard,
+        )
+    except Exception as e:
+        logger.error("Failed to send application to review group: %s", e)
 
     context.user_data.clear()
     return ConversationHandler.END
@@ -485,11 +484,6 @@ WAITING_FOR_SUM: dict[int, int] = {}
 async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
-    admin_id = query.from_user.id
-    if admin_id not in ADMIN_CHAT_IDS:
-        await query.edit_message_reply_markup(reply_markup=None)
-        return
 
     action, app_id_str = query.data.split(":", 1)
     app_id = int(app_id_str)
@@ -531,10 +525,6 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def admin_grant_sum_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
     await query.answer()
-
-    admin_id = query.from_user.id
-    if admin_id not in ADMIN_CHAT_IDS:
-        return
 
     parts = query.data.split(":")
     app_id = int(parts[1])

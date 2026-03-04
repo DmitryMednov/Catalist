@@ -485,11 +485,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     query = update.callback_query
     await query.answer()
 
+    reviewer_id = query.from_user.id
     action, app_id_str = query.data.split(":", 1)
     app_id = int(app_id_str)
 
     if action == "approve":
-        WAITING_FOR_SUM[admin_id] = app_id
+        WAITING_FOR_SUM[reviewer_id] = app_id
         await query.edit_message_reply_markup(reply_markup=None)
         keyboard = InlineKeyboardMarkup(
             [[InlineKeyboardButton(f"€{amt}", callback_data=f"grantsum:{app_id}:{amt}")]
@@ -526,11 +527,12 @@ async def admin_grant_sum_selected(update: Update, context: ContextTypes.DEFAULT
     query = update.callback_query
     await query.answer()
 
+    reviewer_id = query.from_user.id
     parts = query.data.split(":")
     app_id = int(parts[1])
     approved_sum = parts[2]
 
-    WAITING_FOR_SUM.pop(admin_id, None)
+    WAITING_FOR_SUM.pop(reviewer_id, None)
     app = update_application_status(app_id, "approved", approved_sum)
 
     await query.edit_message_reply_markup(reply_markup=None)

@@ -129,6 +129,11 @@ def init_db() -> None:
         )
         """
     )
+    # Migrate: add clinic column if missing (old DB schema)
+    cursor = conn.execute("PRAGMA table_info(applications)")
+    columns = [row[1] for row in cursor.fetchall()]
+    if "clinic" not in columns:
+        conn.execute("ALTER TABLE applications ADD COLUMN clinic TEXT NOT NULL DEFAULT ''")
     conn.commit()
     conn.close()
 

@@ -245,11 +245,12 @@ async def post_init(application) -> None:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if LOGO_PATH.exists():
-        await update.message.reply_photo(
-            photo=open(LOGO_PATH, "rb"),
-            caption=WELCOME_TEXT,
-            reply_markup=MAIN_MENU,
-        )
+        with open(LOGO_PATH, "rb") as logo:
+            await update.message.reply_photo(
+                photo=logo,
+                caption=WELCOME_TEXT,
+                reply_markup=MAIN_MENU,
+            )
     else:
         await update.message.reply_text(WELCOME_TEXT, reply_markup=MAIN_MENU)
 
@@ -287,12 +288,13 @@ async def clinic_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     clinic_key = query.data.split(":", 1)[1]
 
     if clinic_key == "other":
-        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(text=f"{ASK_CLINIC}\n\nSelected: Other")
         await query.message.reply_text("Please enter the clinic name.")
         return CLINIC_OTHER
 
-    context.user_data["clinic"] = CLINIC_OPTIONS[int(clinic_key)]
-    await query.edit_message_reply_markup(reply_markup=None)
+    clinic_name = CLINIC_OPTIONS[int(clinic_key)]
+    context.user_data["clinic"] = clinic_name
+    await query.edit_message_text(text=f"{ASK_CLINIC}\n\nSelected: {clinic_name}")
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(label, callback_data=f"proc:{key}")]
          for key, label in PROCEDURE_OPTIONS]
@@ -317,13 +319,13 @@ async def procedure_selected(update: Update, context: ContextTypes.DEFAULT_TYPE)
     proc_key = query.data.split(":", 1)[1]
 
     if proc_key == "other":
-        await query.edit_message_reply_markup(reply_markup=None)
+        await query.edit_message_text(text=f"{ASK_PROCEDURE}\n\nSelected: Other")
         await query.message.reply_text(ASK_PROCEDURE_OTHER)
         return PROCEDURE_OTHER
 
     proc_label = dict(PROCEDURE_OPTIONS).get(proc_key, proc_key)
     context.user_data["procedure"] = proc_label
-    await query.edit_message_reply_markup(reply_markup=None)
+    await query.edit_message_text(text=f"{ASK_PROCEDURE}\n\nSelected: {proc_label}")
 
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(f"€{amt}", callback_data=f"cost:{amt}")]
@@ -348,7 +350,7 @@ async def cost_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     await query.answer()
     amount = query.data.split(":", 1)[1]
     context.user_data["cost"] = f"€{amount}"
-    await query.edit_message_reply_markup(reply_markup=None)
+    await query.edit_message_text(text=f"{ASK_COST}\n\nSelected: €{amount}")
     await query.message.reply_text(ASK_FIRST_NAME)
     return FIRST_NAME
 
@@ -456,17 +458,12 @@ async def confirm_submit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             photo=d["photo_file_id"],
             caption=admin_text,
             reply_markup=keyboard,
+            message_thread_id=742,
         )
     except Exception as e:
         logger.error("Failed to send application to review group: %s", e)
 
     context.user_data.clear()
-    return ConversationHandler.END
-
-
-async def confirm_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data.clear()
-    await update.message.reply_text(CANCEL_TEXT, reply_markup=MAIN_MENU)
     return ConversationHandler.END
 
 
@@ -615,10 +612,13 @@ def main() -> None:
             COMMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, comment_received)],
             CONFIRM: [
                 MessageHandler(filters.Regex("^Submit application$"), confirm_submit),
-                MessageHandler(filters.Regex("^Cancel$"), confirm_cancel),
+                MessageHandler(filters.Regex("^Cancel$"), cancel),
             ],
         },
-        fallbacks=[CommandHandler("cancel", cancel)],
+        fallbacks=[
+            CommandHandler("cancel", cancel),
+            MessageHandler(filters.Regex(r"(?i)^cancel$"), cancel),
+        ],
     )
 
     app.add_handler(CommandHandler("start", start))

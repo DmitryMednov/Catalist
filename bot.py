@@ -49,6 +49,21 @@ REVIEW_CHAT_ID = int(os.environ["REVIEW_CHAT_ID"])
 MAX_GRANT_EUR = 100
 GRANT_OPTIONS = [20, 40, 60, 80, 100]
 
+CLINIC_OPTIONS = [
+    "Dr. Adventures / Др. Эдвенчерс",
+    "Vet Union / Вет Юнион",
+    "Alternativa / Альтернатива",
+    "Chance Bio / Шанс Био",
+    "Cosmos / Космос",
+    "Biocenter / Биоцентр",
+    "Nordvet / Нордвет",
+    "Constellation / Созвездие",
+    "LeoVet / ЛеоВет",
+    "Bely Klyk / Белый Клык",
+    "Best / Бэст",
+    "MedVet / МедВет",
+]
+
 PROCEDURE_OPTIONS = [
     ("vaccination", "Vaccination"),
     ("sterilisation", "Sterilisation"),
@@ -75,6 +90,7 @@ MAIN_MENU = ReplyKeyboardMarkup(
 (
     PHOTO,
     CLINIC,
+    CLINIC_OTHER,
     PROCEDURE,
     PROCEDURE_OTHER,
     COST,
@@ -84,7 +100,7 @@ MAIN_MENU = ReplyKeyboardMarkup(
     EMAIL,
     COMMENT,
     CONFIRM,
-) = range(11)
+) = range(12)
 
 # ── Database ─────────────────────────────────────────────────────────────────
 
@@ -246,7 +262,12 @@ async def apply_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def photo_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     photo = update.message.photo[-1]
     context.user_data["photo_file_id"] = photo.file_id
-    await update.message.reply_text(ASK_CLINIC)
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(name, callback_data=f"clinic:{i}")]
+         for i, name in enumerate(CLINIC_OPTIONS)]
+        + [[InlineKeyboardButton("Other", callback_data="clinic:other")]]
+    )
+    await update.message.reply_text(ASK_CLINIC, reply_markup=keyboard)
     return CLINIC
 
 
@@ -255,7 +276,27 @@ async def photo_invalid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     return PHOTO
 
 
-async def clinic_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def clinic_selected(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    query = update.callback_query
+    await query.answer()
+    clinic_key = query.data.split(":", 1)[1]
+
+    if clinic_key == "other":
+        await query.edit_message_reply_markup(reply_markup=None)
+        await query.message.reply_text("Please enter the clinic name.")
+        return CLINIC_OTHER
+
+    context.user_data["clinic"] = CLINIC_OPTIONS[int(clinic_key)]
+    await query.edit_message_reply_markup(reply_markup=None)
+    keyboard = InlineKeyboardMarkup(
+        [[InlineKeyboardButton(label, callback_data=f"proc:{key}")]
+         for key, label in PROCEDURE_OPTIONS]
+    )
+    await query.message.reply_text(ASK_PROCEDURE, reply_markup=keyboard)
+    return PROCEDURE
+
+
+async def clinic_other_received(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data["clinic"] = update.message.text
     keyboard = InlineKeyboardMarkup(
         [[InlineKeyboardButton(label, callback_data=f"proc:{key}")]
@@ -557,7 +598,8 @@ def main() -> None:
                 MessageHandler(filters.PHOTO, photo_received),
                 MessageHandler(~filters.PHOTO & ~filters.COMMAND, photo_invalid),
             ],
-            CLINIC: [MessageHandler(filters.TEXT & ~filters.COMMAND, clinic_received)],
+            CLINIC: [CallbackQueryHandler(clinic_selected, pattern=r"^clinic:")],
+            CLINIC_OTHER: [MessageHandler(filters.TEXT & ~filters.COMMAND, clinic_other_received)],
             PROCEDURE: [CallbackQueryHandler(procedure_selected, pattern=r"^proc:")],
             PROCEDURE_OTHER: [MessageHandler(filters.TEXT & ~filters.COMMAND, procedure_other_received)],
             COST: [CallbackQueryHandler(cost_selected, pattern=r"^cost:")],

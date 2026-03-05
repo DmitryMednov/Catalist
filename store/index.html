@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FUERTE — Товары для настольного тенниса</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="container header__inner">
+    <a href="#" class="logo">
+      <div class="logo__icon">
+        <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="20" cy="20" r="19" stroke="white" stroke-width="2"/>
+          <ellipse cx="20" cy="18" rx="8" ry="10" fill="white" opacity="0.9"/>
+          <circle cx="28" cy="12" r="4" fill="white"/>
+        </svg>
+      </div>
+      <div class="logo__text">
+        <span class="logo__name">FUERTE</span>
+        <span class="logo__slogan">Играй! Помогай! Побеждай!</span>
+      </div>
+    </a>
+
+    <nav class="nav">
+      <a href="#catalog" class="nav__link">Каталог</a>
+      <a href="#balls" class="nav__link">Мячи</a>
+      <a href="#rackets" class="nav__link">Ракетки</a>
+      <a href="#accessories" class="nav__link">Аксессуары</a>
+      <a href="#about" class="nav__link">О бренде</a>
+    </nav>
+
+    <button class="cart-btn" id="cartBtn" aria-label="Корзина">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+        <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+      </svg>
+      <span class="cart-btn__count" id="cartCount">0</span>
+    </button>
+
+    <button class="burger" id="burgerBtn" aria-label="Меню">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container hero__inner">
+    <div class="hero__content">
+      <h1 class="hero__title">Сила настольного тенниса<br><span>без границ</span></h1>
+      <p class="hero__text">Профессиональное оборудование для настольного тенниса. Мячи, ракетки и аксессуары от бренда FUERTE.</p>
+      <a href="#catalog" class="btn btn--primary btn--lg">Перейти в каталог</a>
+    </div>
+    <div class="hero__visual">
+      <div class="hero__ball hero__ball--1">40</div>
+      <div class="hero__ball hero__ball--2">55</div>
+      <div class="hero__ball hero__ball--3">44</div>
+    </div>
+  </div>
+</section>
+
+<!-- CATALOG -->
+<section class="section" id="catalog">
+  <div class="container">
+    <h2 class="section__title">Каталог товаров</h2>
+    <div class="tabs">
+      <button class="tab tab--active" data-filter="all">Все товары</button>
+      <button class="tab" data-filter="balls">Мячи</button>
+      <button class="tab" data-filter="box">Наборы</button>
+      <button class="tab" data-filter="racket">Ракетки</button>
+      <button class="tab" data-filter="accessory">Аксессуары</button>
+    </div>
+
+    <div class="products" id="productsGrid">
+      <!-- Products will be rendered by JS -->
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section class="section section--dark" id="about">
+  <div class="container">
+    <h2 class="section__title section__title--light">О бренде FUERTE</h2>
+    <div class="about__grid">
+      <div class="about__card">
+        <div class="about__icon">&#9733;</div>
+        <h3>Качество</h3>
+        <p>Все товары сертифицированы и соответствуют международным стандартам ITTF.</p>
+      </div>
+      <div class="about__card">
+        <div class="about__icon">&#9829;</div>
+        <h3>Благотворительность</h3>
+        <p>Часть средств от продаж направляется на поддержку детского спорта.</p>
+      </div>
+      <div class="about__card">
+        <div class="about__icon">&#9889;</div>
+        <h3>Инновации</h3>
+        <p>Современные материалы и технологии для максимальной отдачи в игре.</p>
+      </div>
+      <div class="about__card">
+        <div class="about__icon">&#127942;</div>
+        <h3>Для чемпионов</h3>
+        <p>Продукция используется профессиональными игроками на турнирах.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container footer__inner">
+    <div class="footer__brand">
+      <span class="logo__name">FUERTE</span>
+      <p>Играй! Помогай! Побеждай!</p>
+    </div>
+    <div class="footer__links">
+      <a href="#catalog">Каталог</a>
+      <a href="#about">О бренде</a>
+      <a href="mailto:info@fuerte.sport">info@fuerte.sport</a>
+    </div>
+    <div class="footer__copy">&copy; 2026 FUERTE. Все права защищены.</div>
+  </div>
+</footer>
+
+<!-- CART DRAWER -->
+<div class="overlay" id="overlay"></div>
+<aside class="cart-drawer" id="cartDrawer">
+  <div class="cart-drawer__header">
+    <h3>Корзина</h3>
+    <button class="cart-drawer__close" id="cartClose">&times;</button>
+  </div>
+  <div class="cart-drawer__body" id="cartBody">
+    <p class="cart-empty">Корзина пуста</p>
+  </div>
+  <div class="cart-drawer__footer" id="cartFooter" style="display:none">
+    <div class="cart-drawer__total">Итого: <strong id="cartTotal">0</strong> ₽</div>
+    <button class="btn btn--primary btn--full" id="checkoutBtn">Оформить заказ</button>
+  </div>
+</aside>
+
+<!-- ORDER MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="orderModal">
+    <button class="modal__close" id="modalClose">&times;</button>
+    <h3 class="modal__title" id="modalTitle">Оформление заказа</h3>
+    <div id="modalContent">
+      <form id="orderForm">
+        <label class="form-group">
+          <span>Имя</span>
+          <input type="text" name="name" required placeholder="Ваше имя">
+        </label>
+        <label class="form-group">
+          <span>Телефон</span>
+          <input type="tel" name="phone" required placeholder="+7 (___) ___-__-__">
+        </label>
+        <label class="form-group">
+          <span>Email</span>
+          <input type="email" name="email" required placeholder="email@example.com">
+        </label>
+        <label class="form-group">
+          <span>Адрес доставки</span>
+          <input type="text" name="address" required placeholder="Город, улица, дом">
+        </label>
+        <button type="submit" class="btn btn--primary btn--full">Подтвердить заказ</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

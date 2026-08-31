@@ -170,6 +170,21 @@ Payload перед кодированием перемешивается нес�
 
 ## 8. Развёртывание (runbook)
 
+Быстрый путь — скрипт `deploy/deploy.sh` (шаги 2–4 он выполняет сам, включая
+создание `.env` из шаблона, проверку PIN-ов, сборку, запуск и health-check):
+
+```bash
+git clone -b claude/merch-code-generator-module-ng1tmq https://github.com/DmitryMednov/Catalist.git
+cd Catalist
+./deploy/deploy.sh   # первый запуск создаст .env и попросит его заполнить
+nano .env            # PIN-ы, домен, токены бота
+./deploy/deploy.sh   # соберёт, запустит и проверит
+```
+
+Тот же скрипт используется и для обновлений: `./deploy/deploy.sh` подтягивает
+свежую версию ветки, пересобирает и перезапускает сервисы (миграции БД
+применяются автоматически). Ниже — те же шаги вручную.
+
 1. **DNS.** У регистратора/в DNS-панели создать A-запись `code` (или выбранного поддомена) → IP VPS; TTL по умолчанию. Проверка: `dig code.catalist.world +short` или `nslookup code.catalist.world` — должен вернуться IP сервера. Записи основного домена и `www` не трогать — они смотрят на Tilda.
 2. **Настройки.** На сервере: `git pull` рабочей ветки, затем `cp .env.example .env` и заполнить:
    - `BOT_TOKEN`, `ADMIN_CHAT_IDS`, `REVIEW_CHAT_ID` — как раньше (бот);

@@ -8,10 +8,12 @@
 ## Быстрый старт
 
 ```bash
-cp .env.example .env      # заполнить переменные (таблица ниже)
-docker compose build
-docker compose up -d
+./deploy/deploy.sh        # первый запуск создаст .env и попросит его заполнить
+nano .env                 # заполнить переменные (таблица ниже)
+./deploy/deploy.sh        # сборка, запуск, health-check; он же — для обновлений
 ```
+
+Вручную то же самое: `cp .env.example .env`, затем `docker compose build && docker compose up -d`.
 
 Требования: docker с плагином compose; для модуля мерч-кодов — A-запись поддомена на IP сервера и открытые порты 80/443 (сертификат Let's Encrypt выпускается автоматически). Подробный порядок развёртывания — `docs/merch-module.md`, раздел «Развёртывание».
 

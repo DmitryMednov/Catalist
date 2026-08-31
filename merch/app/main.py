@@ -26,7 +26,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from . import serials
 from .auth import PREFILL_COOKIE, SESSION_COOKIE, SESSION_TTL_HOURS, Auth, AuthError, Principal
@@ -108,19 +108,20 @@ class IssueReq(BaseModel):
     month: int
     place: int
     seq: int
-    expectedCode: str | None = None
+    expectedCode: str | None = Field(default=None, max_length=16)
 
 
 class VerifyReq(BaseModel):
-    code: str
+    # длина ограничена: normalize() на мегабайтной строке — лишняя работа CPU
+    code: str = Field(max_length=64)
 
 
 class RegisterReq(BaseModel):
-    code: str
-    firstName: str = ""
-    lastName: str = ""
-    dob: str = ""
-    email: str = ""
+    code: str = Field(max_length=64)
+    firstName: str = Field(default="", max_length=80)
+    lastName: str = Field(default="", max_length=80)
+    dob: str = Field(default="", max_length=10)
+    email: str = Field(default="", max_length=254)
 
 
 class CatalogReq(BaseModel):
@@ -165,26 +166,39 @@ async def me_prefill(request: Request):
 
 # ---------- вход через Google ----------
 
+NONCE_COOKIE = "merch_oauth_nonce"
+
+
+# Оба обработчика — синхронные (def): FastAPI выполняет их в пуле потоков,
+# и сетевой обмен с Google не блокирует event loop публичных запросов.
 @app.get("/auth/google")
-async def auth_google(request: Request, mode: str = "staff", next: str = "/admin"):
+def auth_google(request: Request, mode: str = "staff", next: str = "/admin"):
     try:
-        return RedirectResponse(auth.auth_url(mode, next), status_code=302)
+        url, nonce = auth.auth_url(mode, next)
     except AuthError as e:
         return _err(503, str(e))
+    resp = RedirectResponse(url, status_code=302)
+    # nonce привязывает начатый вход к этому браузеру (защита от login CSRF);
+    # SameSite=Lax отправляется при top-level GET-редиректе от Google
+    resp.set_cookie(NONCE_COOKIE, nonce, max_age=600,
+                    httponly=True, secure=SECURE_COOKIES, samesite="lax")
+    return resp
 
 
 @app.get("/auth/google/callback")
-async def auth_google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+def auth_google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
     # при ошибке возвращаем туда, откуда начинался вход (next из state)
-    st = auth.unsign(state or "")
+    st = auth.unsign(state or "", "state")
     fallback = (st or {}).get("next") or "/admin"
     if error:  # пользователь отменил вход на стороне Google
         return RedirectResponse(f"{fallback}?auth_error={quote(error)}", status_code=302)
     try:
-        mode, value, next_path = auth.handle_callback(code, state, client_ip(request))
+        mode, value, next_path = auth.handle_callback(
+            code, state, client_ip(request), request.cookies.get(NONCE_COOKIE) or "")
     except AuthError as e:
         return RedirectResponse(f"{fallback}?auth_error={quote(str(e))}", status_code=302)
     resp = RedirectResponse(next_path, status_code=302)
+    resp.delete_cookie(NONCE_COOKIE)
     if mode == "staff":
         resp.set_cookie(SESSION_COOKIE, value, max_age=SESSION_TTL_HOURS * 3600,
                         httponly=True, secure=SECURE_COOKIES, samesite="lax")
@@ -229,16 +243,26 @@ async def put_catalog(request: Request, body: CatalogReq):
     p, denied = _guard(request, "config")
     if denied:
         return denied
+    # валидируем структуру целиком: сломанный каталог обрушил бы и выдачу,
+    # и сам редактор каталога, которым его можно было бы починить
     cat = body.catalog
     if not isinstance(cat.get("types"), list) or not isinstance(cat.get("places"), list):
         return _err(400, "catalog must contain lists 'types' and 'places'")
     if len(cat["types"]) > serials.CAP["type"] or len(cat["places"]) > serials.CAP["place"]:
         return _err(400, "catalog exceeds serial number capacity")
+    for p_ in cat["places"]:
+        if not isinstance(p_, dict) or not str(p_.get("name") or "").strip():
+            return _err(400, "every site must be an object with a name")
     for t in cat["types"]:
-        if not t.get("name") or not isinstance(t.get("colors"), list):
+        if not isinstance(t, dict) or not str(t.get("name") or "").strip() or not isinstance(t.get("colors"), list):
             return _err(400, "every type needs a name and a list of colors")
         if len(t["colors"]) > serials.CAP["color"]:
             return _err(400, "too many colors for one type")
+        if t.get("site") is not None and not (isinstance(t["site"], int) and 0 <= t["site"] < len(cat["places"])):
+            return _err(400, f"type '{t['name']}': site must be an index into places or null")
+        for c in t["colors"]:
+            if not isinstance(c, dict) or not str(c.get("name") or "").strip():
+                return _err(400, f"type '{t['name']}': every colour must be an object with a name")
     store.save_catalog(cat)
     store.audit(p.label, "catalog_update",
                 f"types={len(cat['types'])} places={len(cat['places'])}")
@@ -316,9 +340,10 @@ async def next_seq(request: Request, type: int, color: int, month: int, place: i
     if denied:
         return denied
     used = store.used_seqs(type, color, month, place)
-    n = 1
-    while n in used and n < serials.CAP["seq"]:
-        n += 1
+    # номера изданий идут с 1 (как в прототипе); 0 через подсказку не выдаём
+    n = next((i for i in range(1, serials.CAP["seq"]) if i not in used), None)
+    if n is None:
+        return _err(409, "all edition numbers for this selection are taken", used=len(used))
     return {"ok": True, "seq": n, "used": len(used)}
 
 
@@ -349,6 +374,11 @@ async def ledger_export(request: Request):
     p, denied = _guard(request, "ledger")
     if denied:
         return denied
+    def cell(v):
+        """Экранирование формул (CWE-1236): часть полей вводят покупатели."""
+        s = "" if v is None else str(v)
+        return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
+
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(["code", "product", "color", "seq", "edition", "month", "site",
@@ -356,10 +386,11 @@ async def ledger_export(request: Request):
                 "owner_first_name", "owner_last_name", "owner_email"])
     for r in store.all_records():
         o = r["owner"] or {}
-        w.writerow([r["code"], r["product"], r["colorName"], r["seq"], r["edition"] or "",
-                    serials.month_label(r["month"]), r["site"], r["issuedAt"], r["issuedBy"] or "",
-                    r["checks"], "yes" if r["owner"] else "no",
-                    o.get("firstName", ""), o.get("lastName", ""), o.get("email", "")])
+        w.writerow([cell(x) for x in (
+            r["code"], r["product"], r["colorName"], r["seq"], r["edition"] or "",
+            serials.month_label(r["month"]), r["site"], r["issuedAt"], r["issuedBy"] or "",
+            r["checks"], "yes" if r["owner"] else "no",
+            o.get("firstName", ""), o.get("lastName", ""), o.get("email", ""))])
     store.audit(p.label, "ledger_export", f"{store.count_records()} records")
     return Response(
         buf.getvalue(), media_type="text/csv; charset=utf-8",
@@ -478,6 +509,9 @@ async def verify(request: Request, req: VerifyReq):
         store.log_verify(dec.norm, "mismatch", ip)
         return {"ok": False, "status": "mismatch", "code": dec.norm}
     checks = store.bump_checks(dec.norm)
+    if checks is None:  # запись успели удалить в момент проверки
+        store.log_verify(dec.norm, "not_issued", ip)
+        return {"ok": False, "status": "not_issued", "code": dec.norm}
     store.log_verify(dec.norm, "issued", ip)
     return {
         "ok": True, "status": "issued", "code": dec.norm,

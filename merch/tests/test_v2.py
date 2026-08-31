@@ -234,3 +234,117 @@ def test_issued_by_recorded():
 def test_admin_page_served():
     r = _client().get("/admin")
     assert r.status_code == 200
+
+
+# ---------- исправления по итогам ревизии ----------
+
+def test_non_ascii_pin_is_401_not_500():
+    from app.security import Roles
+    assert Roles().role_of("ÿéßü\xff") is None  # не падает TypeError
+    c = _client()
+    # заголовок с байтами вне ASCII (Starlette декодирует их как latin-1)
+    r = c.get("/api/catalog", headers={b"x-pin": "ÿéßü".encode("latin-1")})
+    assert r.status_code == 401
+
+
+def test_catalog_deep_validation_rejects_broken_shapes():
+    c = _client()
+    ok_place = [{"name": "Dubai", "on": True}]
+    cases = [
+        {"types": [{"name": "X", "on": True, "colors": ["red"]}], "places": ok_place},
+        {"types": [{"name": "X", "on": True, "colors": [{"hex": "#fff"}]}], "places": ok_place},
+        {"types": ["x"], "places": ok_place},
+        {"types": [], "places": ["Dubai"]},
+        {"types": [{"name": "X", "on": True, "colors": [], "site": 5}], "places": ok_place},
+    ]
+    for cat in cases:
+        r = c.put("/api/catalog", json={"catalog": cat}, headers=ADMIN)
+        assert r.status_code == 400, f"accepted broken catalog: {cat}"
+    # валидный каталог по-прежнему принимается, и GET после этого жив
+    good = {"types": [{"name": "X", "on": True, "sheet": "a5", "site": 0, "edition": 10,
+                       "colors": [{"name": "Red", "hex": "#f00", "on": True, "img": None}]}],
+            "places": ok_place}
+    assert c.put("/api/catalog", json={"catalog": good}, headers=ADMIN).status_code == 200
+    assert c.get("/api/catalog", headers=ADMIN).status_code == 200
+    # возвращаем сид, чтобы не мешать другим тестам
+    from app.catalog_seed import SEED_CATALOG
+    assert c.put("/api/catalog", json={"catalog": SEED_CATALOG}, headers=ADMIN).status_code == 200
+
+
+def test_next_seq_exhaustion_returns_409():
+    month = 199  # изолированная комбинация
+    for s in range(1, 4096):
+        assert store.insert_record({
+            "code": f"T{month}{s:04d}", "slot": f"0-0-{month}-0-{s}",
+            "type": 0, "color": 0, "month": month, "place": 0, "seq": s,
+            "product": "P", "colorName": "C", "hex": None, "img": None,
+            "site": "S", "sheet": "a5", "edition": None, "issuedBy": None,
+        })
+    r = _client().get("/api/issue/next-seq",
+                      params={"type": 0, "color": 0, "month": month, "place": 0}, headers=PROD)
+    assert r.status_code == 409
+    assert "taken" in r.json()["error"]
+
+
+def test_prefill_token_rejected_as_state():
+    c = _client()
+    prefill = auth_mgr.sign({"firstName": "A", "lastName": "B", "email": "a@b.co"}, 600, "prefill")
+    r = c.get(f"/auth/google/callback?code=x&state={prefill}", follow_redirects=False)
+    assert r.status_code == 302 and "auth_error" in r.headers["location"]
+
+
+def test_callback_without_nonce_cookie_is_rejected():
+    c = _client()
+    r = c.get("/auth/google?mode=staff&next=/admin", follow_redirects=False)
+    state = parse_qs(urlparse(r.headers["location"]).query)["state"][0]
+    fresh = _client()  # другой «браузер»: nonce-cookie нет — login CSRF
+    orig = auth_mgr._exchange_code
+    auth_mgr._exchange_code = lambda code: _staff_profile("boss@example.com")
+    try:
+        r2 = fresh.get(f"/auth/google/callback?code=x&state={state}", follow_redirects=False)
+    finally:
+        auth_mgr._exchange_code = orig
+    assert r2.status_code == 302 and "auth_error" in r2.headers["location"]
+    assert fresh.get("/api/me").json()["auth"] is None
+
+
+def test_csv_export_escapes_formulas():
+    c = _client()
+    code = c.post("/api/issue/confirm",
+                  json={"type": 0, "color": 3, "month": 5, "place": 0, "seq": 903},
+                  headers=ADMIN).json()["code"]
+    r = c.post("/api/register", json={
+        "code": code, "firstName": "=HYPERLINK(\"https://evil.tld\")", "lastName": "Doe",
+        "dob": "1990-01-01", "email": "x@y.co"})
+    assert r.status_code == 200
+    body = c.get("/api/ledger/export.csv", headers=ADMIN).text
+    assert "'=HYPERLINK" in body and "\n=HYPERLINK" not in body
+
+
+def test_oversized_public_fields_rejected():
+    c = _client()
+    assert c.post("/api/verify", json={"code": "A" * 100000}).status_code == 422
+    assert c.post("/api/register", json={"code": "AAAA1111", "firstName": "x" * 100000,
+                                         "lastName": "y", "dob": "1990-01-01",
+                                         "email": "a@b.co"}).status_code == 422
+
+
+def test_google_email_moved_to_existing_account():
+    c = _client()
+    a = store.upsert_google_user("sub-move-1", "old@example.com", "Old", "", set())
+    b = store.upsert_google_user("sub-move-2", "new@example.com", "New", "", set())
+    # почта аккаунта sub-move-1 сменилась на адрес существующей учётки B
+    merged = store.upsert_google_user("sub-move-1", "new@example.com", "New Name", "", set())
+    assert merged["id"] == b["id"]  # идентичность — по email
+    old = store.get_user(a["id"])
+    assert old is not None  # старая учётка осталась, но без google_sub
+
+
+def test_bump_checks_after_delete_returns_none():
+    code = "ZZQQ0001"
+    store.insert_record({"code": code, "slot": "9-9-200-9-9", "type": 9, "color": 9,
+                         "month": 200, "place": 9, "seq": 9, "product": "P", "colorName": "C",
+                         "hex": None, "img": None, "site": "S", "sheet": "a5",
+                         "edition": None, "issuedBy": None})
+    store.delete_record(code)
+    assert store.bump_checks(code) is None

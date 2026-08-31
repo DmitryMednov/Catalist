@@ -103,18 +103,19 @@ class Auth:
 
     # ---------- подписанные значения (state, prefill-cookie) ----------
 
-    def sign(self, payload: dict, ttl_s: int) -> str:
-        body = _b64e(json.dumps({**payload, "exp": int(time.time()) + ttl_s}).encode())
+    def sign(self, payload: dict, ttl_s: int, purpose: str) -> str:
+        """Подписанный токен с назначением: state и prefill не взаимозаменяемы."""
+        body = _b64e(json.dumps({**payload, "pur": purpose, "exp": int(time.time()) + ttl_s}).encode())
         mac = hmac.new(self._secret, body.encode(), hashlib.sha256).hexdigest()
         return f"{body}.{mac}"
 
-    def unsign(self, token: str) -> dict | None:
+    def unsign(self, token: str, purpose: str) -> dict | None:
         try:
             body, mac = token.split(".", 1)
             if not hmac.compare_digest(hmac.new(self._secret, body.encode(), hashlib.sha256).hexdigest(), mac):
                 return None
             payload = json.loads(_b64d(body))
-            if payload.get("exp", 0) < time.time():
+            if payload.get("exp", 0) < time.time() or payload.get("pur") != purpose:
                 return None
             return payload
         except Exception:
@@ -127,12 +128,15 @@ class Auth:
         # только внутренние пути — никаких редиректов на чужие домены
         return next_path if next_path.startswith("/") and not next_path.startswith("//") else "/"
 
-    def auth_url(self, mode: str, next_path: str) -> str:
+    def auth_url(self, mode: str, next_path: str) -> tuple[str, str]:
+        """Возвращает (URL Google, nonce). Nonce кладётся в cookie браузера и
+        сверяется на callback — state не может быть подброшен из чужой сессии."""
         if not self.google_configured:
             raise AuthError("Google sign-in is not configured on the server")
         mode = mode if mode in ("staff", "buyer") else "staff"
-        state = self.sign({"mode": mode, "next": self._safe_next(next_path), "nonce": secrets.token_hex(8)}, STATE_TTL_S)
-        return GOOGLE_AUTH_URL + "?" + urlencode({
+        nonce = secrets.token_hex(16)
+        state = self.sign({"mode": mode, "next": self._safe_next(next_path), "nonce": nonce}, STATE_TTL_S, "state")
+        url = GOOGLE_AUTH_URL + "?" + urlencode({
             "client_id": self.client_id,
             "redirect_uri": self.redirect_uri,
             "response_type": "code",
@@ -140,6 +144,7 @@ class Auth:
             "state": state,
             "prompt": "select_account",
         })
+        return url, nonce
 
     def _exchange_code(self, code: str) -> dict:
         """Меняет authorization code на профиль пользователя Google."""
@@ -158,22 +163,26 @@ class Auth:
                 raise AuthError(f"userinfo failed ({info.status_code})")
             return info.json()
 
-    def handle_callback(self, code: str, state: str, ip: str) -> tuple[str, str, str]:
+    def handle_callback(self, code: str, state: str, ip: str, nonce_cookie: str) -> tuple[str, str, str]:
         """Возвращает (mode, значение cookie, путь редиректа)."""
-        st = self.unsign(state or "")
+        st = self.unsign(state or "", "state")
         if not st:
             raise AuthError("state expired or invalid — start the sign-in again")
+        # nonce из state обязан совпасть с cookie, выставленной этому браузеру
+        # на старте входа, — иначе state подброшен из чужой сессии (login CSRF)
+        if not nonce_cookie or not hmac.compare_digest(str(st.get("nonce") or ""), nonce_cookie):
+            raise AuthError("sign-in was started in a different browser — start again")
         profile = self._exchange_code(code)
         email = (profile.get("email") or "").lower()
         if not email or not profile.get("email_verified", False):
             raise AuthError("Google account has no verified email")
         next_path = self._safe_next(st.get("next") or "/")
-        if st["mode"] == "buyer":
+        if st.get("mode") == "buyer":
             prefill = self.sign({
                 "firstName": profile.get("given_name") or "",
                 "lastName": profile.get("family_name") or "",
                 "email": email,
-            }, PREFILL_TTL_S)
+            }, PREFILL_TTL_S, "prefill")
             return "buyer", prefill, next_path
         user = self.store.upsert_google_user(
             sub=profile.get("sub") or email, email=email,
@@ -201,7 +210,7 @@ class Auth:
         return None
 
     def prefill_from(self, request) -> dict | None:
-        data = self.unsign(request.cookies.get(PREFILL_COOKIE) or "")
+        data = self.unsign(request.cookies.get(PREFILL_COOKIE) or "", "prefill")
         if not data:
             return None
         return {"firstName": data.get("firstName", ""), "lastName": data.get("lastName", ""),

@@ -39,9 +39,11 @@ class Roles:
     def role_of(self, pin: str | None) -> str | None:
         if not pin or not self.configured:
             return None
-        if hmac.compare_digest(pin, self.admin_pin):
+        # сравниваем байты: compare_digest на str падает на не-ASCII вводе
+        raw = pin.encode("utf-8", "replace")
+        if hmac.compare_digest(raw, self.admin_pin.encode("utf-8", "replace")):
             return "admin"
-        if hmac.compare_digest(pin, self.production_pin):
+        if hmac.compare_digest(raw, self.production_pin.encode("utf-8", "replace")):
             return "production"
         return None
 

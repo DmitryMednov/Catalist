@@ -1,12 +1,7 @@
 /* Админ-дашборд модуля мерч-кодов: вход (Google-cookie или PIN), вкладки по ролям.
-   Скрытие вкладок — только UX: права на каждую операцию проверяет сервер. */
+   Скрытие вкладок — только UX: права на каждую операцию проверяет сервер.
+   Общие помощники (monthLabel, esc, $, fmtTime/fmtDate) — common.js. */
 "use strict";
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const BASE_YEAR = 2026;
-const monthLabel = (m) => `${MONTHS[m % 12]} ${BASE_YEAR + Math.floor(m / 12)}`;
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 let PIN = sessionStorage.getItem("merch_pin") || "";
 let ME = null;            // /api/me → auth
@@ -31,15 +26,6 @@ function setMsg(id, text, kind) {
   el.textContent = text || "";
   el.className = "msg" + (kind ? ` ${kind}` : "");
 }
-
-function fmtTime(iso) {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
-  const p = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
-}
-const fmtDate = (iso) => { const s = fmtTime(iso); return s === "—" ? s : s.slice(0, 10); };
 
 /* ---------------- screens & tabs ---------------- */
 const TABS = [
@@ -455,7 +441,25 @@ async function loadAuditLog() {
   $("pin-input").addEventListener("keydown", (e) => { if (e.key === "Enter") tryPin(); });
   $("logout-norole").onclick = logout;
   $("logout-production").onclick = logout;
-  $("journal-export").onclick = () => { location.href = "/api/ledger/export.csv"; };
+  // экспорт через fetch: заголовок X-Pin при переходе по ссылке не передался бы
+  $("journal-export").onclick = async () => {
+    const headers = PIN ? { "X-Pin": PIN } : {};
+    let res;
+    try { res = await fetch("/api/ledger/export.csv", { headers }); }
+    catch { setMsg("journal-msg", "network error — check the connection", "err"); return; }
+    if (!res.ok) {
+      let msg = `export failed (${res.status})`;
+      try { msg = (await res.json()).error || msg; } catch {}
+      setMsg("journal-msg", msg, "err");
+      return;
+    }
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "catalist-ledger.csv";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
   $("journal-clear").onclick = clearJournal;
   $("logs-tab-checks").onclick = () => showLogView("checks");
   $("logs-tab-actions").onclick = () => showLogView("actions");

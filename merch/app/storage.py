@@ -341,13 +341,15 @@ class Storage:
             cur = self._db.execute("DELETE FROM ledger")
             return cur.rowcount
 
-    def bump_checks(self, code: str) -> int:
+    def bump_checks(self, code: str) -> int | None:
+        """None — запись успели удалить между поиском и инкрементом."""
         with self._lock, self._db:
             self._db.execute(
                 "UPDATE ledger SET checks = checks + 1, last_check = ? WHERE code = ?",
                 (_now(), code),
             )
-            return self._db.execute("SELECT checks FROM ledger WHERE code = ?", (code,)).fetchone()["checks"]
+            row = self._db.execute("SELECT checks FROM ledger WHERE code = ?", (code,)).fetchone()
+            return row["checks"] if row else None
 
     def register_owner(self, code: str, owner: dict) -> bool:
         """Одноразовая регистрация владельца; False — уже зарегистрирован."""
@@ -380,9 +382,15 @@ class Storage:
         email = email.lower()
         is_admin = email in admin_emails
         with self._lock, self._db:
-            row = self._db.execute(
-                "SELECT * FROM users WHERE google_sub = ? OR email = ?", (sub, email)
-            ).fetchone()
+            row_email = self._db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
+            row_sub = self._db.execute("SELECT * FROM users WHERE google_sub = ?", (sub,)).fetchone()
+            if row_email and row_sub and row_email["id"] != row_sub["id"]:
+                # почта Google-аккаунта сменилась на адрес другой учётки:
+                # идентичность персонала — это email, поэтому sub переезжает
+                # к учётке с этим адресом, а со старой снимается
+                self._db.execute("UPDATE users SET google_sub = NULL WHERE id = ?", (row_sub["id"],))
+                row_sub = None
+            row = row_email or row_sub
             if row:
                 role = "admin" if is_admin else row["role"]
                 self._db.execute(

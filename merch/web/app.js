@@ -1,13 +1,6 @@
-/* Клиент модуля мерч-кодов: проверка публичная, выдача и журнал — по PIN. */
+/* Клиент модуля мерч-кодов: проверка публичная, выдача и журнал — по сессии
+   Google или PIN. Общие помощники (monthLabel, normalize, esc, $) — common.js. */
 "use strict";
-
-const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-const BASE_YEAR = 2026;
-const monthLabel = (m) => `${MONTHS[m % 12]} ${BASE_YEAR + Math.floor(m / 12)}`;
-const normalize = (raw) => String(raw || "").toUpperCase().replace(/[^0-9A-Z]/g, "")
-  .replace(/I/g, "1").replace(/L/g, "1").replace(/O/g, "0").replace(/U/g, "V");
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 let PIN = sessionStorage.getItem("merch_pin") || "";
 let ROLE = null;
@@ -23,7 +16,9 @@ const TAB_ROLES = { gen: ["production", "admin"], journal: ["production", "ledge
 async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
   if (PIN) headers["X-Pin"] = PIN;
-  const res = await fetch(path, { ...opts, headers });
+  let res;
+  try { res = await fetch(path, { ...opts, headers }); }
+  catch { return { ok: false, error: "network error — check the connection" }; }
   try { return await res.json(); }
   catch { return { ok: false, error: `server error (${res.status})` }; }
 }

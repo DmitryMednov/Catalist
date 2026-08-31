@@ -186,4 +186,5 @@ def test_discount_survives_reregistration_cycle():
 def test_my_page_served_and_deep_link_reserved():
     pub = TestClient(app)
     assert pub.get("/my").status_code == 200
-    assert pub.get("/api/status").json()["version"] == "2.1.0"
+    from app.version import APP_VERSION
+    assert pub.get("/api/status").json()["version"] == APP_VERSION

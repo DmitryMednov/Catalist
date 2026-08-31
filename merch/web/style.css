@@ -61,7 +61,7 @@ header {
 /* Логотип — серифный знак: подпись и ссылки сидят на его базовой линии
    (flex-end + компенсация хвоста-росчерка), а не болтаются по центру. */
 .brand { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.brand-left { display: flex; align-items: flex-end; gap: 12px; min-width: 0; }
+.brand-left { display: flex; align-items: flex-end; gap: 12px; min-width: 0; margin-right: auto; }
 .brand img { height: 32px; width: auto; display: block; }
 .brand .sub {
   font-size: 11px; letter-spacing: 2.6px; text-transform: uppercase; line-height: 1;
@@ -76,6 +76,49 @@ header {
 }
 .head-links a:hover { color: var(--ink); }
 @media (max-width: 519px) { .brand .sub { display: none; } .brand-left { border: none; } }
+
+/* ---------- бургер и стеклянное меню разделов ---------- */
+.burger {
+  flex: none; width: 44px; height: 44px; padding: 0; cursor: pointer;
+  border-radius: 999px; border: 1.5px solid var(--line);
+  background: rgba(255, 255, 255, .38);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  display: inline-flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px;
+  transition: border-color .18s ease, background .18s ease;
+  align-self: center;
+}
+.burger:hover { border-color: var(--ink); background: rgba(255, 255, 255, .55); }
+.burger span { display: block; width: 18px; height: 2px; background: var(--ink); border-radius: 2px; transition: transform .25s ease, opacity .2s ease; }
+.burger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.burger.open span:nth-child(2) { opacity: 0; }
+.burger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+.menu-overlay[hidden] { display: none; } /* класс с display:flex не должен перебивать hidden */
+.menu-overlay {
+  position: fixed; inset: 0; z-index: 4; /* под sticky-шапкой: бургер остаётся кликабельным */
+  background: rgba(242, 224, 190, .78);
+  backdrop-filter: blur(24px) saturate(1.5); -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  display: flex; justify-content: center; align-items: flex-start;
+  padding: 164px 22px 32px; overflow-y: auto;
+}
+.menu-panel { width: 100%; max-width: 560px; display: flex; flex-direction: column; }
+.menu-panel a {
+  font-family: var(--sans); font-weight: 300; text-transform: uppercase;
+  font-size: clamp(28px, 7.6vw, 38px); line-height: 1.12; letter-spacing: .4px;
+  color: var(--ink); text-decoration: none; padding: 18px 2px;
+  border-bottom: 1px solid var(--line);
+  transition: padding-left .18s ease, color .18s ease;
+}
+.menu-panel a b { font-family: var(--display); font-weight: 800; letter-spacing: .2px; }
+.menu-panel a:hover { padding-left: 12px; }
+.menu-panel a.current { color: var(--steel); pointer-events: none; }
+.menu-copy { margin-top: 26px; font-size: 11px; letter-spacing: 2.4px; text-transform: uppercase; font-weight: 600; color: var(--steel); }
+.menu-lock, .menu-lock body { overflow: hidden; }
+@media (prefers-reduced-motion: no-preference) {
+  .menu-overlay { animation: menuFade .22s ease both; }
+  .menu-panel a { animation: rise .34s cubic-bezier(.2, .7, .3, 1) both; animation-delay: calc(var(--i, 0) * 45ms); }
+  @keyframes menuFade { from { opacity: 0; } }
+}
 
 /* вкладки — стеклянная капсула (glass) поверх прокручиваемого контента */
 nav.tabs {

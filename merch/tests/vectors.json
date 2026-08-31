@@ -1,0 +1,736 @@
+{
+ "meta": {
+  "rounds": {
+   "00000000000000000000000000000000": [
+    81402918,
+    4288350742,
+    376439406,
+    3861283726
+   ],
+   "0123456789abcdef0123456789abcdef": [
+    301412359,
+    4223557726,
+    1547561373,
+    3205544146
+   ],
+   "a3f1c2d4e5b60718293a4b5c6d7e8f90": [
+    1446014195,
+    1457850992,
+    2627764696,
+    1956231196
+   ],
+   "ffffffffffffffffffffffffffffffff": [
+    2441814913,
+    2782768216,
+    3411864613,
+    2043153954
+   ]
+  }
+ },
+ "vectors": [
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 0,
+    "color": 0,
+    "month": 0,
+    "place": 0,
+    "seq": 0
+   },
+   "code": "JK2W1FRY"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 31,
+    "color": 63,
+    "month": 255,
+    "place": 15,
+    "seq": 4095
+   },
+   "code": "N3JGYS2F"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 1,
+    "color": 2,
+    "month": 7,
+    "place": 1,
+    "seq": 1
+   },
+   "code": "KGDSAP56"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 0,
+    "color": 4,
+    "month": 7,
+    "place": 0,
+    "seq": 500
+   },
+   "code": "9KBS08BX"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 30,
+    "color": 41,
+    "month": 229,
+    "place": 4,
+    "seq": 1687
+   },
+   "code": "WDJFB8GW"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 8,
+    "color": 27,
+    "month": 161,
+    "place": 13,
+    "seq": 2998
+   },
+   "code": "N60N062M"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 24,
+    "color": 10,
+    "month": 41,
+    "place": 0,
+    "seq": 595
+   },
+   "code": "Z5A7KKJT"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 19,
+    "color": 24,
+    "month": 16,
+    "place": 5,
+    "seq": 1077
+   },
+   "code": "NE476C72"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 18,
+    "color": 44,
+    "month": 149,
+    "place": 11,
+    "seq": 926
+   },
+   "code": "J7VX5ND0"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 9,
+    "color": 41,
+    "month": 110,
+    "place": 7,
+    "seq": 4019
+   },
+   "code": "01QWPB1A"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 9,
+    "color": 35,
+    "month": 238,
+    "place": 5,
+    "seq": 3281
+   },
+   "code": "Q2QXFH3X"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 24,
+    "color": 42,
+    "month": 66,
+    "place": 9,
+    "seq": 48
+   },
+   "code": "RV1FKAZV"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 11,
+    "color": 42,
+    "month": 57,
+    "place": 13,
+    "seq": 1165
+   },
+   "code": "1BGBP8MX"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 6,
+    "color": 0,
+    "month": 207,
+    "place": 15,
+    "seq": 943
+   },
+   "code": "NSAGJMES"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 6,
+    "color": 49,
+    "month": 183,
+    "place": 9,
+    "seq": 2172
+   },
+   "code": "VT6ZA8ZF"
+  },
+  {
+   "key": "00000000000000000000000000000000",
+   "fields": {
+    "type": 21,
+    "color": 61,
+    "month": 67,
+    "place": 6,
+    "seq": 249
+   },
+   "code": "C564J66D"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 0,
+    "color": 0,
+    "month": 0,
+    "place": 0,
+    "seq": 0
+   },
+   "code": "0PNDH07S"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 31,
+    "color": 63,
+    "month": 255,
+    "place": 15,
+    "seq": 4095
+   },
+   "code": "WTDBT9P1"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 1,
+    "color": 2,
+    "month": 7,
+    "place": 1,
+    "seq": 1
+   },
+   "code": "A4F7NAQD"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 0,
+    "color": 4,
+    "month": 7,
+    "place": 0,
+    "seq": 500
+   },
+   "code": "PDZR013H"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 28,
+    "color": 63,
+    "month": 194,
+    "place": 1,
+    "seq": 3762
+   },
+   "code": "3FSW4GVG"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 2,
+    "color": 32,
+    "month": 247,
+    "place": 4,
+    "seq": 3808
+   },
+   "code": "RH23R01X"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 24,
+    "color": 17,
+    "month": 144,
+    "place": 1,
+    "seq": 599
+   },
+   "code": "43KVA450"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 22,
+    "color": 21,
+    "month": 114,
+    "place": 1,
+    "seq": 1977
+   },
+   "code": "Q7E9R4QJ"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 24,
+    "color": 7,
+    "month": 209,
+    "place": 6,
+    "seq": 2779
+   },
+   "code": "6TQSVFBJ"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 11,
+    "color": 23,
+    "month": 185,
+    "place": 12,
+    "seq": 0
+   },
+   "code": "TKKFJFMM"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 17,
+    "color": 38,
+    "month": 12,
+    "place": 11,
+    "seq": 776
+   },
+   "code": "R9GPQGNV"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 21,
+    "color": 49,
+    "month": 123,
+    "place": 0,
+    "seq": 1092
+   },
+   "code": "26WYNDDR"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 18,
+    "color": 20,
+    "month": 204,
+    "place": 4,
+    "seq": 2301
+   },
+   "code": "DJ36WVX1"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 18,
+    "color": 16,
+    "month": 62,
+    "place": 0,
+    "seq": 144
+   },
+   "code": "E1NZ0J02"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 15,
+    "color": 0,
+    "month": 139,
+    "place": 11,
+    "seq": 3864
+   },
+   "code": "AG81JX7V"
+  },
+  {
+   "key": "0123456789abcdef0123456789abcdef",
+   "fields": {
+    "type": 31,
+    "color": 62,
+    "month": 96,
+    "place": 11,
+    "seq": 1980
+   },
+   "code": "TK839HBK"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 0,
+    "color": 0,
+    "month": 0,
+    "place": 0,
+    "seq": 0
+   },
+   "code": "28WR34DY"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 31,
+    "color": 63,
+    "month": 255,
+    "place": 15,
+    "seq": 4095
+   },
+   "code": "K2191AXM"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 1,
+    "color": 2,
+    "month": 7,
+    "place": 1,
+    "seq": 1
+   },
+   "code": "QGCYFDCR"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 0,
+    "color": 4,
+    "month": 7,
+    "place": 0,
+    "seq": 500
+   },
+   "code": "KDHN5D2R"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 28,
+    "color": 46,
+    "month": 26,
+    "place": 1,
+    "seq": 2029
+   },
+   "code": "6KM4Q1M7"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 10,
+    "color": 60,
+    "month": 46,
+    "place": 12,
+    "seq": 1943
+   },
+   "code": "Y629EEAS"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 3,
+    "color": 19,
+    "month": 147,
+    "place": 14,
+    "seq": 1363
+   },
+   "code": "98426JN5"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 13,
+    "color": 35,
+    "month": 67,
+    "place": 13,
+    "seq": 1846
+   },
+   "code": "3P268PFW"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 7,
+    "color": 63,
+    "month": 194,
+    "place": 3,
+    "seq": 3335
+   },
+   "code": "HRS7PZ7Y"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 31,
+    "color": 33,
+    "month": 237,
+    "place": 5,
+    "seq": 3649
+   },
+   "code": "K9Y641VQ"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 6,
+    "color": 40,
+    "month": 34,
+    "place": 2,
+    "seq": 1835
+   },
+   "code": "M4HRX9KG"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 23,
+    "color": 1,
+    "month": 85,
+    "place": 2,
+    "seq": 3451
+   },
+   "code": "Z9ZE6FP5"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 7,
+    "color": 40,
+    "month": 94,
+    "place": 0,
+    "seq": 3339
+   },
+   "code": "APKFQBE2"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 10,
+    "color": 4,
+    "month": 115,
+    "place": 4,
+    "seq": 2988
+   },
+   "code": "525P9XY8"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 14,
+    "color": 45,
+    "month": 189,
+    "place": 5,
+    "seq": 937
+   },
+   "code": "BRR2DSGR"
+  },
+  {
+   "key": "a3f1c2d4e5b60718293a4b5c6d7e8f90",
+   "fields": {
+    "type": 14,
+    "color": 12,
+    "month": 179,
+    "place": 10,
+    "seq": 909
+   },
+   "code": "J7PZA5ZF"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 0,
+    "color": 0,
+    "month": 0,
+    "place": 0,
+    "seq": 0
+   },
+   "code": "0VZ89F5V"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 31,
+    "color": 63,
+    "month": 255,
+    "place": 15,
+    "seq": 4095
+   },
+   "code": "PMMXJGRP"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 1,
+    "color": 2,
+    "month": 7,
+    "place": 1,
+    "seq": 1
+   },
+   "code": "5PHXPSDX"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 0,
+    "color": 4,
+    "month": 7,
+    "place": 0,
+    "seq": 500
+   },
+   "code": "8ME9AVMY"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 19,
+    "color": 40,
+    "month": 154,
+    "place": 8,
+    "seq": 621
+   },
+   "code": "HH671G86"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 8,
+    "color": 53,
+    "month": 126,
+    "place": 8,
+    "seq": 2957
+   },
+   "code": "AXEV7XMP"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 30,
+    "color": 9,
+    "month": 3,
+    "place": 1,
+    "seq": 153
+   },
+   "code": "Z673D6ZV"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 9,
+    "color": 52,
+    "month": 87,
+    "place": 7,
+    "seq": 188
+   },
+   "code": "1XMVS37B"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 4,
+    "color": 30,
+    "month": 128,
+    "place": 6,
+    "seq": 1375
+   },
+   "code": "597GTJ4S"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 17,
+    "color": 49,
+    "month": 244,
+    "place": 3,
+    "seq": 1174
+   },
+   "code": "XQWJBVDJ"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 12,
+    "color": 46,
+    "month": 237,
+    "place": 9,
+    "seq": 2174
+   },
+   "code": "61K5D93B"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 4,
+    "color": 5,
+    "month": 63,
+    "place": 15,
+    "seq": 1233
+   },
+   "code": "YE0RW07X"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 27,
+    "color": 57,
+    "month": 203,
+    "place": 5,
+    "seq": 3232
+   },
+   "code": "HYXDC68W"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 2,
+    "color": 3,
+    "month": 250,
+    "place": 2,
+    "seq": 3143
+   },
+   "code": "DMH973X5"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 5,
+    "color": 16,
+    "month": 51,
+    "place": 5,
+    "seq": 761
+   },
+   "code": "W0GCGH87"
+  },
+  {
+   "key": "ffffffffffffffffffffffffffffffff",
+   "fields": {
+    "type": 15,
+    "color": 51,
+    "month": 124,
+    "place": 5,
+    "seq": 1668
+   },
+   "code": "PBWFEEJA"
+  }
+ ]
+}

@@ -1,0 +1,26 @@
+# Reverse-proxy для модуля мерч-кодов.
+# Домен берётся из переменной MERCH_DOMAIN (docker-compose.yml → .env).
+# Caddy сам выпускает и продлевает сертификат Let's Encrypt — для этого
+# у поддомена должна быть A-запись на IP сервера и открыты порты 80/443.
+#
+# Чтобы получать письма Let's Encrypt об истечении сертификата,
+# раскомментируйте блок и укажите почту:
+# {
+#     email admin@catalist.world
+# }
+
+{$MERCH_DOMAIN} {
+    encode gzip
+
+    # Кэшируем статику, API не кэшируем
+    @static path /static/*
+    header @static Cache-Control "public, max-age=86400"
+    header /api/* Cache-Control "no-store"
+
+    header {
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+
+    reverse_proxy merch:8000
+}

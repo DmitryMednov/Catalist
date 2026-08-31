@@ -1,4 +1,5 @@
 services:
+  # Telegram-бот приёма заявок (существующий сервис, без изменений)
   bot:
     build: .
     restart: always
@@ -8,5 +9,39 @@ services:
       - REVIEW_CHAT_ID=${REVIEW_CHAT_ID}
     volumes:
       - bot-data:/app/data
+
+  # Модуль мерч-кодов: генерация и проверка серийных номеров
+  # (поддомен, например code.catalist.world — задаётся в .env)
+  merch:
+    build: ./merch
+    restart: always
+    environment:
+      - MERCH_PRODUCTION_PIN=${MERCH_PRODUCTION_PIN}
+      - MERCH_ADMIN_PIN=${MERCH_ADMIN_PIN}
+      - MERCH_SERIAL_KEY=${MERCH_SERIAL_KEY:-}
+      - MERCH_PUBLIC_URL=https://${MERCH_DOMAIN:-code.catalist.world}
+      - MERCH_BEHIND_PROXY=1
+    volumes:
+      - merch-data:/app/data
+
+  # Reverse-proxy с автоматическим HTTPS (Let's Encrypt) для поддомена
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - MERCH_DOMAIN=${MERCH_DOMAIN:-code.catalist.world}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - merch
+
 volumes:
   bot-data:
+  merch-data:
+  caddy-data:
+  caddy-config:

@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalist — serial numbers</title>
+<meta name="description" content="Check the authenticity of a Catalist collectible by its serial number.">
+<link rel="icon" href="/static/logo.png">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="head-inner">
+    <div class="brand">
+      <img src="/static/logo.png" alt="Catalist">
+      <span class="sub">Serial numbers</span>
+    </div>
+    <nav>
+      <button id="tab-check" data-tab="check"><span class="t">Check</span><span class="s">verify</span></button>
+      <button id="tab-generate" data-tab="generate"><span class="t">Serial</span><span class="s">issuing</span></button>
+      <button id="tab-journal" data-tab="journal"><span class="t">Register</span><span class="s">issued</span></button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= CHECK (public) ================= -->
+  <section id="view-check">
+    <h2>Check authenticity</h2>
+    <div class="card">
+      <label for="check-input">Serial number — 8 characters</label>
+      <input id="check-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false"
+             placeholder="XXXXXXXX" style="text-align:center;letter-spacing:6px;font-size:20px;text-transform:uppercase">
+      <button class="btn" id="check-btn">Check</button>
+      <div class="msg" id="check-msg"></div>
+    </div>
+    <div id="check-result"></div>
+  </section>
+
+  <!-- ================= GENERATE (PIN) ================= -->
+  <section id="view-generate" class="hidden">
+    <h2>Issue a serial number</h2>
+    <div id="gen-login" class="card pin-box">
+      <label for="pin-input">Access PIN</label>
+      <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+      <button class="btn" id="pin-btn">Open session</button>
+      <div class="msg" id="pin-msg"></div>
+    </div>
+    <div id="gen-app" class="hidden">
+      <div class="card">
+        <label for="gen-place">Production site</label>
+        <select id="gen-place"></select>
+        <label for="gen-type">Product</label>
+        <select id="gen-type"></select>
+        <label for="gen-color">Colour</label>
+        <select id="gen-color"></select>
+        <div class="row">
+          <div>
+            <label for="gen-month">Month of manufacture</label>
+            <select id="gen-month"></select>
+          </div>
+          <div>
+            <label for="gen-seq">Edition number</label>
+            <input id="gen-seq" type="number" min="1" max="4095" value="1">
+          </div>
+        </div>
+        <div class="msg" id="gen-seq-hint"></div>
+        <button class="btn" id="gen-btn">Generate</button>
+        <div class="msg" id="gen-msg"></div>
+      </div>
+      <div id="gen-preview" class="hidden">
+        <div class="card preview-frame">
+          <div class="plate" id="gen-plate"></div>
+          <div class="preview-note">Preview — not recorded yet</div>
+        </div>
+        <button class="btn good" id="gen-save">Save — record the number</button>
+        <div id="gen-saved" class="hidden">
+          <div class="msg okk" id="gen-saved-msg"></div>
+          <div class="row">
+            <button class="btn ghost" id="gen-copy">Copy code</button>
+            <button class="btn ghost" id="gen-copy-url">Copy check link</button>
+          </div>
+        </div>
+      </div>
+      <div class="msg">Generate only shows the number — nothing is recorded until you press Save.
+        Every saved number is recorded by the service, so the same product, colour, month and
+        edition number cannot be issued twice.</div>
+    </div>
+  </section>
+
+  <!-- ================= JOURNAL (PIN) ================= -->
+  <section id="view-journal" class="hidden">
+    <h2>Issued numbers</h2>
+    <div id="journal-login" class="card pin-box">
+      <label for="pin-input2">Access PIN</label>
+      <input id="pin-input2" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+      <button class="btn" id="pin-btn2">Open session</button>
+      <div class="msg" id="pin-msg2"></div>
+    </div>
+    <div id="journal-app" class="hidden">
+      <div class="msg" id="journal-count"></div>
+      <div class="tbl-wrap"><table id="journal-table"></table></div>
+      <button class="btn danger hidden" id="journal-clear">Delete all records</button>
+      <div class="msg" id="journal-msg"></div>
+    </div>
+  </section>
+
+  <footer>
+    <a href="https://catalist.world">catalist.world</a>
+  </footer>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

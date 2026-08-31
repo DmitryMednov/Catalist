@@ -135,7 +135,7 @@ def test_clear_requires_confirm():
 
 def test_deep_link_serves_check_page():
     r = client.get("/A1B2C3D4")
-    assert r.status_code == 200 and "Check authenticity" in r.text
+    assert r.status_code == 200 and "Check <b>authenticity</b>" in r.text
     assert client.get("/api").status_code == 404
     r = client.get("/")
     assert r.status_code == 200 and "Catalist" in r.text

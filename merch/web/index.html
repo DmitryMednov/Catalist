@@ -27,11 +27,11 @@
 
   <!-- ================= CHECK (public) ================= -->
   <section id="view-check">
-    <h2>Check authenticity</h2>
+    <h2>Check <b>authenticity</b> <svg class="spark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 20 9 15"/><path d="M12 19 14 12"/><path d="M18 16 22 11"/></svg></h2>
     <div class="card">
       <label for="check-input">Serial number — 8 characters</label>
       <input id="check-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false"
-             placeholder="XXXXXXXX" style="text-align:center;letter-spacing:6px;font-size:20px;text-transform:uppercase">
+             placeholder="XXXXXXXX" style="text-align:center;letter-spacing:7px;font-size:22px;text-transform:uppercase;font-family:var(--mono)">
       <button class="btn" id="check-btn">Check</button>
       <div class="msg" id="check-msg"></div>
     </div>
@@ -40,7 +40,7 @@
 
   <!-- ================= GENERATE (PIN) ================= -->
   <section id="view-generate" class="hidden">
-    <h2>Issue a serial number</h2>
+    <h2>Issue a <b>serial number</b></h2>
     <div id="gen-login" class="card pin-box">
       <button class="btn google-btn hidden" data-next="/">Sign in with Google</button>
       <div class="or-sep google-only hidden">— or —</div>
@@ -93,7 +93,7 @@
 
   <!-- ================= JOURNAL (PIN) ================= -->
   <section id="view-journal" class="hidden">
-    <h2>Issued numbers</h2>
+    <h2>Issued <b>numbers</b></h2>
     <div id="journal-login" class="card pin-box">
       <button class="btn google-btn hidden" data-next="/">Sign in with Google</button>
       <div class="or-sep google-only hidden">— or —</div>
@@ -111,7 +111,7 @@
   </section>
 
   <footer>
-    <a href="https://catalist.world">catalist.world</a>
+    <a href="https://catalist.world">catalist.world</a> · <a href="/my">my collection</a>
     <span id="foot-session" class="hidden"> · <span id="foot-who"></span> · <a href="/admin">admin</a> · <a href="#" id="foot-logout">log out</a></span>
   </footer>
 </div>

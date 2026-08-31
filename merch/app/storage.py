@@ -139,7 +139,30 @@ def _m2_auth_and_logs(db: sqlite3.Connection) -> None:
         db.execute("ALTER TABLE ledger ADD COLUMN issued_by TEXT")
 
 
-MIGRATIONS: list[tuple[int, callable]] = [(1, _m1_base), (2, _m2_auth_and_logs)]
+def _m3_buyers_discounts(db: sqlite3.Connection) -> None:
+    """Кабинет покупателя и скидки за регистрацию фигурки."""
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS buyers (
+            email TEXT PRIMARY KEY,
+            token_hash TEXT NOT NULL UNIQUE,
+            created_at TEXT NOT NULL
+        )""")
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS discounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT NOT NULL UNIQUE,
+            email TEXT NOT NULL,
+            percent INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at TEXT NOT NULL,
+            used_at TEXT,
+            email_sent INTEGER NOT NULL DEFAULT 0
+        )""")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_discounts_email ON discounts(email)")
+
+
+MIGRATIONS: list[tuple[int, callable]] = [(1, _m1_base), (2, _m2_auth_and_logs), (3, _m3_buyers_discounts)]
 SCHEMA_VERSION = MIGRATIONS[-1][0]
 
 
@@ -508,6 +531,123 @@ class Storage:
                 "SELECT at, actor, action, details FROM audit_log ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
         return [dict(r) for r in rows]
+
+    # ---------- покупатели и скидки ----------
+    # Покупатель идентифицируется email-ом. Токен кабинета — bearer-ссылка из
+    # письма; в базе хранится только его SHA-256 (как у сессий персонала), и
+    # при каждой новой выдаче ссылки токен ротируется — старые ссылки гаснут.
+
+    def issue_buyer_token(self, email: str) -> str:
+        """Создаёт покупателя при необходимости и выдаёт НОВЫЙ токен кабинета."""
+        email = email.lower()
+        token = "b" + secrets.token_urlsafe(24)
+        with self._lock, self._db:
+            self._db.execute(
+                """INSERT INTO buyers (email, token_hash, created_at) VALUES (?, ?, ?)
+                   ON CONFLICT(email) DO UPDATE SET token_hash = excluded.token_hash""",
+                (email, self._token_hash(token), _now()),
+            )
+        return token
+
+    def buyer_email_by_token(self, token: str) -> str | None:
+        if not token:
+            return None
+        with self._lock:
+            row = self._db.execute(
+                "SELECT email FROM buyers WHERE token_hash = ?", (self._token_hash(token),)
+            ).fetchone()
+        return row["email"] if row else None
+
+    def buyer_exists(self, email: str) -> bool:
+        with self._lock:
+            return self._db.execute(
+                "SELECT 1 FROM buyers WHERE email = ?", (email.lower(),)
+            ).fetchone() is not None
+
+    @staticmethod
+    def _discount(row: sqlite3.Row) -> dict:
+        return {
+            "token": row["token"], "code": row["code"], "email": row["email"],
+            "percent": row["percent"], "status": row["status"],
+            "createdAt": row["created_at"], "usedAt": row["used_at"],
+            "emailSent": bool(row["email_sent"]),
+        }
+
+    def grant_discount(self, code: str, email: str, percent: int) -> dict:
+        """Скидка за регистрацию фигурки: одна на код, повтор возвращает существующую."""
+        email = email.lower()
+        alphabet = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"  # без I, L, O, U — читает кассир
+        with self._lock, self._db:
+            for _ in range(20):  # коллизия токена — практически невозможна, но конечный цикл
+                token = "CAT-" + "".join(secrets.choice(alphabet) for _ in range(4)) + "-" + \
+                        "".join(secrets.choice(alphabet) for _ in range(4))
+                try:
+                    self._db.execute(
+                        "INSERT INTO discounts (code, email, percent, token, status, created_at) "
+                        "VALUES (?, ?, ?, ?, 'active', ?)",
+                        (code, email, percent, token, _now()),
+                    )
+                    break
+                except sqlite3.IntegrityError:
+                    existing = self._db.execute(
+                        "SELECT * FROM discounts WHERE code = ?", (code,)
+                    ).fetchone()
+                    if existing:  # скидка на эту фигурку уже есть
+                        return self._discount(existing)
+                    continue  # столкнулись токеном — генерируем другой
+            row = self._db.execute("SELECT * FROM discounts WHERE code = ?", (code,)).fetchone()
+        return self._discount(row)
+
+    def discount_by_token(self, token: str) -> dict | None:
+        with self._lock:
+            row = self._db.execute("SELECT * FROM discounts WHERE token = ?", (token,)).fetchone()
+        return self._discount(row) if row else None
+
+    def discounts_by_email(self, email: str) -> dict[str, dict]:
+        """Скидки покупателя, ключ — код фигурки."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT * FROM discounts WHERE email = ?", (email.lower(),)
+            ).fetchall()
+        return {r["code"]: self._discount(r) for r in rows}
+
+    def set_discount_status(self, token: str, status: str) -> bool:
+        with self._lock, self._db:
+            cur = self._db.execute(
+                "UPDATE discounts SET status = ?, used_at = ? WHERE token = ?",
+                (status, _now() if status == "used" else None, token),
+            )
+            return cur.rowcount > 0
+
+    def mark_discount_email_sent(self, token: str) -> None:
+        with self._lock, self._db:
+            self._db.execute("UPDATE discounts SET email_sent = 1 WHERE token = ?", (token,))
+
+    def list_discounts(self, limit: int = 500) -> list[dict]:
+        """Для дашборда: скидки со снимком изделия из журнала."""
+        with self._lock:
+            rows = self._db.execute(
+                """SELECT d.*, l.product, l.seq FROM discounts d
+                   LEFT JOIN ledger l ON l.code = d.code
+                   ORDER BY d.id DESC LIMIT ?""", (limit,)
+            ).fetchall()
+        out = []
+        for r in rows:
+            d = self._discount(r)
+            d["product"] = r["product"]
+            d["seq"] = r["seq"]
+            out.append(d)
+        return out
+
+    def records_by_owner_email(self, email: str) -> list[dict]:
+        """Фигурки, зарегистрированные на этот email (для кабинета)."""
+        with self._lock:
+            rows = self._db.execute(
+                f"SELECT {_LEDGER_COLUMNS} FROM ledger WHERE owner_email = ? AND registered_at IS NOT NULL "
+                "ORDER BY registered_at DESC",
+                (email.lower(),),
+            ).fetchall()
+        return [self._record(r) for r in rows]
 
     # ---------- статистика ----------
 

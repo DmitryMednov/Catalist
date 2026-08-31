@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Catalist — discount check</title>
+<meta name="description" content="Checkout verification of a Catalist loyalty discount code.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/static/logo.png">
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  /* Страница кассы живёт в собственных стилях: из style.css берутся только
+     css-переменные. Смотрят мельком с телефона — вердикт гигантский. */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--page); color: var(--ink);
+    font-family: -apple-system, "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  .topbar { position: static; background: var(--page); border-bottom: 1.5px solid var(--ink); padding: 14px 16px; }
+  .topbar-in { max-width: 560px; margin: 0 auto; display: flex; align-items: center; gap: 10px; }
+  .logo { display: flex; align-items: center; gap: 10px; margin: 0; }
+  .logo img { height: 30px; width: auto; display: block; }
+  .logo-sub { font-size: 12px; font-weight: 700; letter-spacing: 2.2px; text-transform: uppercase; color: var(--ink); }
+
+  .shell { max-width: 560px; margin: 0 auto; padding: 0 16px 64px; }
+  .page-loading { margin-top: 64px; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--steel); }
+
+  .verdict {
+    background: var(--panel); border-radius: 20px; border: 4px solid var(--ink);
+    padding: 38px 20px 34px; margin-top: 28px; text-align: center;
+    box-shadow: 0 1px 0 rgba(0,0,0,.06);
+  }
+  .verdict-word { font-size: clamp(44px, 13vw, 58px); font-weight: 800; line-height: 1.02; letter-spacing: 1px; text-transform: uppercase; overflow-wrap: break-word; }
+  .verdict-big { font-size: 32px; font-weight: 800; letter-spacing: .5px; margin-top: 12px; }
+  .verdict-sub { font-size: 17px; font-weight: 600; margin-top: 14px; color: var(--steel); line-height: 1.5; }
+  .v-good { border-color: var(--green); }
+  .v-good .verdict-word, .v-good .verdict-big { color: var(--green); }
+  .v-used { border-color: var(--steel); }
+  .v-used .verdict-word, .v-used .verdict-big { color: var(--steel); }
+  .v-bad { border-color: var(--oxide); }
+  .v-bad .verdict-word, .v-bad .verdict-big { color: var(--oxide); }
+
+  .pcard { background: var(--panel); border-radius: 16px; padding: 22px; margin-top: 20px; box-shadow: 0 1px 0 rgba(0,0,0,.06); }
+  .kvr { display: flex; justify-content: space-between; gap: 14px; padding: 13px 0; border-top: 1px solid var(--line); font-size: 17px; }
+  .kvr:first-child { border-top: none; padding-top: 0; }
+  .kvr .k { color: var(--steel); font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; padding-top: 5px; flex: none; }
+  .kvr .v { text-align: right; word-break: break-word; font-weight: 600; }
+  .serial { letter-spacing: 2px; font-weight: 700; word-break: break-all; }
+
+  .site-foot { margin-top: 48px; text-align: center; font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: none; color: var(--steel); }
+  .site-foot a { color: var(--steel); text-decoration: underline; }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="logo">
+      <img src="/static/logo.png" alt="Catalist">
+      <span class="logo-sub">Discount check</span>
+    </div>
+  </div>
+</header>
+
+<div class="shell">
+  <main id="main" aria-live="polite">
+    <div class="page-loading">Checking&hellip;</div>
+  </main>
+  <footer class="site-foot"><a href="https://catalist.world">catalist.world</a></footer>
+</div>
+
+<script>
+/* Страница кассира /d/<токен>: только вердикт по коду скидки, без действий. */
+"use strict";
+(async function () {
+  const main = document.getElementById("main");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const day = (iso) => String(iso || "").slice(0, 10);
+
+  /* токен — всё после «/d/» в адресе */
+  let token = location.pathname.replace(/^\/d\/?/, "");
+  try { token = decodeURIComponent(token); } catch { /* оставляем как есть */ }
+  token = token.replace(/\/+$/, "").trim();
+
+  const verdict = (kind, word, big, sub) => `
+    <div class="verdict ${kind}">
+      <div class="verdict-word">${word}</div>
+      ${big ? `<div class="verdict-big">${big}</div>` : ""}
+      ${sub ? `<div class="verdict-sub">${sub}</div>` : ""}
+    </div>`;
+
+  const detailCard = (d) => {
+    const kv = (k, v) => `<div class="kvr"><div class="k">${k}</div><div class="v">${v}</div></div>`;
+    return `
+    <div class="pcard">
+      ${kv("Discount", esc(String(d.percent)) + "%")}
+      ${kv("Product", esc(d.product))}
+      ${kv("Owner", esc(d.ownerFirstName))}
+      ${kv("Code", `<span class="mono serial">${esc(token)}</span>`)}
+      ${kv("Issued", esc(day(d.createdAt)))}
+    </div>`;
+  };
+
+  const notFound = () => verdict("v-bad", "Not found", null,
+    "This discount code is not in the Catalist register.");
+
+  if (!token) { main.innerHTML = notFound(); return; }
+
+  let res;
+  try { res = await fetch("/api/discount/" + encodeURIComponent(token), { credentials: "same-origin" }); }
+  catch {
+    main.innerHTML = verdict("v-bad", "No connection", null, "Check the connection and reload the page.");
+    return;
+  }
+  if (res.status === 429) {
+    main.innerHTML = verdict("v-bad", "Too many requests", null, "Try again in a minute.");
+    return;
+  }
+  let d = null;
+  try { d = await res.json(); } catch { /* ответ без JSON */ }
+
+  if (res.status === 200 && d && d.ok && d.status === "active") {
+    main.innerHTML = verdict("v-good", "Valid", `${esc(String(d.percent))}% off`) + detailCard(d);
+    return;
+  }
+  if (res.status === 200 && d && d.ok && d.status === "used") {
+    main.innerHTML = verdict("v-used", "Already used", null, `Used on ${esc(day(d.usedAt))}`) + detailCard(d);
+    return;
+  }
+  if (res.status === 404) { main.innerHTML = notFound(); return; }
+  main.innerHTML = verdict("v-bad", "Try later", null, "The service is busy — reload the page in a moment.");
+})();
+</script>
+</body>
+</html>

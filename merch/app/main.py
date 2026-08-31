@@ -22,6 +22,8 @@ import re
 from datetime import datetime, timezone
 from urllib.parse import quote
 
+import segno
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
@@ -29,7 +31,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import serials
-from .auth import PREFILL_COOKIE, SESSION_COOKIE, SESSION_TTL_HOURS, Auth, AuthError, Principal
+from .auth import (BUYER_COOKIE, BUYER_TTL_DAYS, PREFILL_COOKIE, SESSION_COOKIE,
+                   SESSION_TTL_HOURS, Auth, AuthError, Principal)
+from .mailer import Mailer
 from .security import RateLimiter, Roles, client_ip
 from .storage import ROLES as USER_ROLES
 from .storage import Storage
@@ -44,6 +48,7 @@ VERIFY_PER_MIN = int(os.environ.get("MERCH_VERIFY_PER_MIN", "30"))
 REGISTER_PER_MIN = int(os.environ.get("MERCH_REGISTER_PER_MIN", "10"))
 ISSUE_PER_MIN = int(os.environ.get("MERCH_ISSUE_PER_MIN", "60"))
 VERIFYLOG_DAYS = int(os.environ.get("MERCH_VERIFYLOG_DAYS", "365"))
+DISCOUNT_PERCENT = int(os.environ.get("MERCH_DISCOUNT_PERCENT", "10"))
 
 app = FastAPI(title="Catalist merch codes", docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(
@@ -59,6 +64,7 @@ store = Storage(DATA_DIR, os.environ.get("MERCH_SERIAL_KEY") or None)
 roles = Roles()
 limiter = RateLimiter()
 auth = Auth(store, roles, PUBLIC_URL)
+mailer = Mailer()
 store.prune_verify_log(VERIFYLOG_DAYS)
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
@@ -133,6 +139,14 @@ class UserPatchReq(BaseModel):
     active: bool | None = None
 
 
+class MyLinkReq(BaseModel):
+    email: str = Field(max_length=254)
+
+
+class DiscountPatchReq(BaseModel):
+    status: str
+
+
 # ---------- статус и профиль ----------
 
 @app.get("/api/status")
@@ -201,6 +215,11 @@ def auth_google_callback(request: Request, code: str = "", state: str = "", erro
     resp.delete_cookie(NONCE_COOKIE)
     if mode == "staff":
         resp.set_cookie(SESSION_COOKIE, value, max_age=SESSION_TTL_HOURS * 3600,
+                        httponly=True, secure=SECURE_COOKIES, samesite="lax")
+    elif mode == "cabinet":
+        # Google подтвердил email покупателя — выдаём токен кабинета
+        buyer_token = store.issue_buyer_token(value)
+        resp.set_cookie(BUYER_COOKIE, buyer_token, max_age=BUYER_TTL_DAYS * 86400,
                         httponly=True, secure=SECURE_COOKIES, samesite="lax")
     else:
         resp.set_cookie(PREFILL_COOKIE, value, max_age=600,
@@ -542,7 +561,7 @@ async def register(request: Request, req: RegisterReq):
         return _err(404, "this number is not on record")
     if rec["owner"]:
         return _err(409, "this piece is already registered")
-    email = req.email.strip()
+    email = req.email.strip().lower()
     first, last, dob = req.firstName.strip(), req.lastName.strip(), req.dob.strip()
     if not _EMAIL_RE.match(email):
         return _err(422, "check the email address")
@@ -555,7 +574,135 @@ async def register(request: Request, req: RegisterReq):
         return _err(422, "check the date of birth")
     if not store.register_owner(code, {"email": email, "firstName": first, "lastName": last, "dob": dob}):
         return _err(409, "this piece is already registered")
-    return {"ok": True, "owner": {"firstName": first, "lastName": last}}
+
+    # Скидка за регистрацию: сохраняется в БД, письмо уходит в фоне,
+    # покупатель сразу залогинен в личный кабинет (cookie).
+    discount = store.grant_discount(code, email, DISCOUNT_PERCENT)
+    buyer_token = store.issue_buyer_token(email)
+    magic_link = f"{PUBLIC_URL}/my?k={buyer_token}"
+    email_queued = mailer.send_async(
+        mailer.registration_email(
+            to=email, first_name=first, product=rec["product"], seq=rec["seq"],
+            edition=rec["edition"], code=code, percent=discount["percent"],
+            cabinet_url=magic_link, discount_token=discount["token"],
+        ),
+        on_sent=lambda t=discount["token"]: store.mark_discount_email_sent(t),
+    )
+    resp = JSONResponse({
+        "ok": True, "owner": {"firstName": first, "lastName": last},
+        "discount": {"percent": discount["percent"], "token": discount["token"], "status": discount["status"]},
+        "cabinetUrl": "/my",
+        "emailQueued": email_queued,
+    })
+    resp.set_cookie(BUYER_COOKIE, buyer_token, max_age=BUYER_TTL_DAYS * 86400,
+                    httponly=True, secure=SECURE_COOKIES, samesite="lax")
+    return resp
+
+
+# ---------- личный кабинет покупателя и скидки ----------
+
+def _buyer_email(request: Request) -> str | None:
+    return store.buyer_email_by_token(request.cookies.get(BUYER_COOKIE) or "")
+
+
+@app.get("/api/my")
+async def my_collection(request: Request):
+    """Кабинет: фигурки, зарегистрированные на email покупателя, и его скидки."""
+    if not limiter.allow(client_ip(request), "cabinet", 60):
+        return _err(429, "too many requests")
+    email = _buyer_email(request)
+    if not email:
+        return _err(401, "sign in to see your collection")
+    discounts = store.discounts_by_email(email)
+    figurines = []
+    for r in store.records_by_owner_email(email):
+        d = discounts.get(r["code"])
+        figurines.append({
+            "code": r["code"], "product": r["product"], "color": r["colorName"],
+            "hex": r["hex"], "img": r["img"], "seq": r["seq"], "edition": r["edition"],
+            "monthLabel": serials.month_label(r["month"]), "site": r["site"],
+            "registeredAt": (r["owner"] or {}).get("registeredAt"),
+            "discount": {"token": d["token"], "percent": d["percent"],
+                         "status": d["status"], "createdAt": d["createdAt"]} if d else None,
+        })
+    return {"ok": True, "email": email, "figurines": figurines}
+
+
+@app.post("/api/my/link")
+async def my_link(request: Request, req: MyLinkReq):
+    """Отправка ссылки для входа в кабинет. Ответ одинаков для любых адресов —
+    по нему нельзя проверить, есть ли email в базе."""
+    if not limiter.allow(client_ip(request), "maglink", 5):
+        return _err(429, "too many requests")
+    email = req.email.strip().lower()
+    message = "If this address has a registered figurine, the sign-in link is on its way."
+    if _EMAIL_RE.match(email) and (store.buyer_exists(email) or store.records_by_owner_email(email)):
+        token = store.issue_buyer_token(email)
+        mailer.send_async(mailer.signin_email(to=email, cabinet_url=f"{PUBLIC_URL}/my?k={token}"))
+    return {"ok": True, "message": message}
+
+
+@app.post("/api/my/logout")
+async def my_logout():
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(BUYER_COOKIE)
+    return resp
+
+
+@app.get("/api/my/qr/{token}")
+async def my_discount_qr(request: Request, token: str):
+    """QR скидки (SVG). Отдаётся только владельцу кабинета, которому она выдана."""
+    email = _buyer_email(request)
+    if not email:
+        return _err(401, "sign in to see your collection")
+    d = store.discount_by_token(token.strip().upper())
+    if not d or d["email"] != email:
+        return _err(404, "not found")
+    buff = io.BytesIO()
+    segno.make(f"{PUBLIC_URL}/d/{d['token']}", error="m").save(
+        buff, kind="svg", scale=6, dark="#14120E", light=None)
+    return Response(buff.getvalue(), media_type="image/svg+xml",
+                    headers={"Cache-Control": "private, max-age=86400"})
+
+
+@app.get("/api/discount/{token}")
+async def discount_check(request: Request, token: str):
+    """Публичная проверка скидки — страницу /d/<токен> открывает кассир по QR."""
+    if not limiter.allow(client_ip(request), "discount", 30):
+        return _err(429, "too many requests")
+    d = store.discount_by_token(token.strip().upper())
+    if not d:
+        return _err(404, "unknown discount")
+    rec = store.find_by_code(d["code"])
+    return {
+        "ok": True, "status": d["status"], "percent": d["percent"], "token": d["token"],
+        "createdAt": d["createdAt"], "usedAt": d["usedAt"],
+        "product": rec["product"] if rec else None,
+        "ownerFirstName": (rec["owner"] or {}).get("firstName") if rec else None,
+    }
+
+
+@app.get("/api/admin/discounts")
+async def admin_discounts(request: Request):
+    p, denied = _guard(request)
+    if denied:
+        return denied
+    return {"ok": True, "discounts": store.list_discounts()}
+
+
+@app.patch("/api/admin/discounts/{token}")
+async def admin_discount_patch(request: Request, token: str, body: DiscountPatchReq):
+    """Отметка «скидка использована» (или возврат в active) — только admin."""
+    p, denied = _guard(request)
+    if denied:
+        return denied
+    if body.status not in ("active", "used"):
+        return _err(400, "status must be 'active' or 'used'")
+    token = token.strip().upper()
+    if not store.set_discount_status(token, body.status):
+        return _err(404, "not found")
+    store.audit(p.label, "discount_update", f"{token}: status={body.status}")
+    return {"ok": True}
 
 
 @app.get("/healthz")
@@ -575,6 +722,27 @@ async def admin_page():
     return FileResponse(os.path.join(WEB_DIR, "admin.html"))
 
 
+@app.get("/my")
+async def my_page(request: Request, k: str = ""):
+    """Личный кабинет. Ссылка из письма несёт ?k=<токен> — ставим cookie
+    и уходим на чистый /my, чтобы токен не оставался в адресной строке."""
+    if k:
+        email = store.buyer_email_by_token(k)
+        if email:
+            resp = RedirectResponse("/my", status_code=302)
+            resp.set_cookie(BUYER_COOKIE, k, max_age=BUYER_TTL_DAYS * 86400,
+                            httponly=True, secure=SECURE_COOKIES, samesite="lax")
+            return resp
+        return RedirectResponse("/my", status_code=302)  # просроченная ссылка → экран входа
+    return FileResponse(os.path.join(WEB_DIR, "my.html"))
+
+
+@app.get("/d/{token}")
+async def discount_page(token: str):
+    """Страница проверки скидки — на неё ведёт QR из кабинета."""
+    return FileResponse(os.path.join(WEB_DIR, "discount.html"))
+
+
 @app.get("/{code}")
 async def deep_link(code: str):
     """Страница проверки по прямой ссылке — на неё ведёт QR-код сертификата.
@@ -582,7 +750,7 @@ async def deep_link(code: str):
     Любой путь вида /XXXXXXXX открывает интерфейс с автопроверкой кода;
     сам код разбирает клиентский скрипт из location.pathname.
     """
-    if code.lower() in {"api", "static", "healthz", "admin", "auth", "favicon.ico"}:
+    if code.lower() in {"api", "static", "healthz", "admin", "auth", "my", "d", "favicon.ico"}:
         return _err(404, "not found")
     if not re.fullmatch(r"[0-9A-Za-z-]{1,32}", code):
         return _err(404, "not found")

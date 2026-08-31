@@ -38,7 +38,9 @@ GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
 
 SESSION_COOKIE = "merch_session"
 PREFILL_COOKIE = "merch_prefill"
+BUYER_COOKIE = "merch_buyer"       # кабинет покупателя (bearer-токен из buyers)
 SESSION_TTL_HOURS = 12
+BUYER_TTL_DAYS = 180
 STATE_TTL_S = 600
 PREFILL_TTL_S = 600
 
@@ -133,7 +135,9 @@ class Auth:
         сверяется на callback — state не может быть подброшен из чужой сессии."""
         if not self.google_configured:
             raise AuthError("Google sign-in is not configured on the server")
-        mode = mode if mode in ("staff", "buyer") else "staff"
+        # staff — вход персонала; buyer — автозаполнение формы регистрации;
+        # cabinet — вход покупателя в личный кабинет по подтверждённому email
+        mode = mode if mode in ("staff", "buyer", "cabinet") else "staff"
         nonce = secrets.token_hex(16)
         state = self.sign({"mode": mode, "next": self._safe_next(next_path), "nonce": nonce}, STATE_TTL_S, "state")
         url = GOOGLE_AUTH_URL + "?" + urlencode({
@@ -184,6 +188,9 @@ class Auth:
                 "email": email,
             }, PREFILL_TTL_S, "prefill")
             return "buyer", prefill, next_path
+        if st.get("mode") == "cabinet":
+            # staff-учётка не создаётся: Google здесь только подтверждает email
+            return "cabinet", email, next_path
         user = self.store.upsert_google_user(
             sub=profile.get("sub") or email, email=email,
             name=profile.get("name") or "", picture=profile.get("picture") or "",

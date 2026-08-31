@@ -33,6 +33,7 @@ const TABS = [
   { id: "users", roles: ["admin"] },
   { id: "catalog", roles: ["admin", "config"] },
   { id: "journal", roles: ["admin", "ledger"] },
+  { id: "discounts", roles: ["admin"] },
   { id: "logs", roles: ["admin"] },
 ];
 const SCREENS = ["login", "norole", "production", ...TABS.map((t) => t.id)];
@@ -82,6 +83,7 @@ function showTab(name) {
   else if (name === "users") loadUsers();
   else if (name === "catalog") loadCatalog();
   else if (name === "journal") loadJournal();
+  else if (name === "discounts") loadDiscounts();
   else if (name === "logs") showLogView(LOG_VIEW);
 }
 
@@ -384,6 +386,41 @@ async function clearJournal() {
   const d = await api("/api/ledger?confirm=all", { method: "DELETE" });
   if (!d.ok) { setMsg("journal-msg", d.error || "failed", "err"); return; }
   loadJournal();
+}
+
+/* ---------------- discounts ---------------- */
+async function loadDiscounts() {
+  const r = await api("/api/admin/discounts");
+  if (!r.ok) { setMsg("discounts-msg", r.error || "failed to load", "err"); return; }
+  setMsg("discounts-msg", "");
+  const list = r.discounts || [];
+  const active = list.filter((d) => d.status === "active").length;
+  $("discounts-count").textContent = `${list.length} discount${list.length === 1 ? "" : "s"} · ${active} active`;
+  const head = "<tr><th>Code</th><th>%</th><th>Figurine</th><th>Buyer</th><th>Status</th><th>Email</th><th></th></tr>";
+  const rows = list.map((d) => `
+    <tr>
+      <td><span class="code">${esc(d.token)}</span><br><span class="dim">${esc((d.createdAt || "").slice(0, 10))}</span></td>
+      <td>${esc(d.percent)}%</td>
+      <td>${d.product ? esc(d.product) + (d.seq != null ? ` <span class="dim">№ ${String(d.seq).padStart(3, "0")}</span>` : "") : `<span class="dim">${esc(d.code)}</span>`}</td>
+      <td>${esc(d.email)}</td>
+      <td>${d.status === "active"
+        ? '<span class="st-ok">ACTIVE</span>'
+        : `<span class="dim">USED${d.usedAt ? " · " + esc(d.usedAt.slice(0, 10)) : ""}</span>`}</td>
+      <td>${d.emailSent ? '<span class="st-ok">sent</span>' : '<span class="dim">—</span>'}</td>
+      <td><button class="btn mini ghost" data-token="${esc(d.token)}" data-next="${d.status === "active" ? "used" : "active"}">
+        ${d.status === "active" ? "Mark used" : "Reactivate"}</button></td>
+    </tr>`).join("");
+  $("discounts-table").innerHTML = head +
+    (rows || '<tr><td colspan="7"><span class="dim">no discounts yet — they appear when buyers register figurines</span></td></tr>');
+  $("discounts-table").querySelectorAll("button[data-token]").forEach((b) => {
+    b.onclick = async () => {
+      const d = await api(`/api/admin/discounts/${encodeURIComponent(b.dataset.token)}`, {
+        method: "PATCH", body: JSON.stringify({ status: b.dataset.next }),
+      });
+      if (!d.ok) { setMsg("discounts-msg", d.error || "failed", "err"); return; }
+      loadDiscounts();
+    };
+  });
 }
 
 /* ---------------- logs ---------------- */

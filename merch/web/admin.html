@@ -23,6 +23,7 @@
       <button id="tab-users" class="hidden"><span class="t">Users</span><span class="s">access</span></button>
       <button id="tab-catalog" class="hidden"><span class="t">Catalogue</span><span class="s">products</span></button>
       <button id="tab-journal" class="hidden"><span class="t">Journal</span><span class="s">issued</span></button>
+      <button id="tab-discounts" class="hidden"><span class="t">Discounts</span><span class="s">loyalty</span></button>
       <button id="tab-logs" class="hidden"><span class="t">Logs</span><span class="s">activity</span></button>
     </nav>
   </div>
@@ -33,7 +34,7 @@
 
   <!-- ================= SIGN IN ================= -->
   <section id="view-login" class="hidden">
-    <h2>Staff access</h2>
+    <h2>Staff <b>access</b></h2>
     <div class="card pin-box">
       <div id="google-block" class="hidden">
         <button class="btn" id="google-btn">Sign in with Google</button>
@@ -48,7 +49,7 @@
 
   <!-- ================= NO ROLE YET ================= -->
   <section id="view-norole" class="hidden">
-    <h2>Access pending</h2>
+    <h2>Access <b>pending</b></h2>
     <div class="card pin-box">
       <div class="status-sub">Your account is created. Ask the administrator to assign you a role.</div>
       <button class="btn ghost" id="logout-norole">Log out</button>
@@ -66,9 +67,9 @@
 
   <!-- ================= OVERVIEW (admin) ================= -->
   <section id="view-overview" class="hidden">
-    <h2>Overview</h2>
+    <h2>Over<b>view</b> <svg class="spark" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 20 9 15"/><path d="M12 19 14 12"/><path d="M18 16 22 11"/></svg></h2>
     <div class="stat-grid" id="stat-grid"></div>
-    <h2>By product</h2>
+    <h2>By <b>product</b></h2>
     <div class="tbl-wrap"><table id="stats-products"></table></div>
     <div class="svc-meta" id="stats-meta"></div>
     <div class="msg" id="overview-msg"></div>
@@ -76,22 +77,22 @@
 
   <!-- ================= USERS (admin) ================= -->
   <section id="view-users" class="hidden">
-    <h2>Users</h2>
+    <h2>Team <b>access</b></h2>
     <div class="tbl-wrap"><table id="users-table"></table></div>
     <div class="msg" id="users-msg"></div>
   </section>
 
   <!-- ================= CATALOGUE (admin, config) ================= -->
   <section id="view-catalog" class="hidden">
-    <h2>Catalogue <span id="cat-dirty" class="dirty hidden">unsaved changes</span></h2>
+    <h2>Cata<b>logue</b> <span id="cat-dirty" class="dirty hidden">unsaved changes</span></h2>
     <div class="warn-note">Indexes of products, colours and sites are encoded into issued serial numbers.
       Do not reorder or delete entries that already have issued numbers — switch them off instead.</div>
-    <h2>Production sites</h2>
+    <h2>Production <b>sites</b></h2>
     <div class="card">
       <div id="cat-places"></div>
       <button class="btn ghost" id="cat-add-place">+ Add site</button>
     </div>
-    <h2>Products</h2>
+    <h2>Pro<b>ducts</b></h2>
     <div id="cat-types"></div>
     <button class="btn ghost" id="cat-add-type">+ Add product</button>
     <button class="btn" id="cat-save" disabled>Save catalogue</button>
@@ -100,7 +101,7 @@
 
   <!-- ================= JOURNAL (admin, ledger) ================= -->
   <section id="view-journal" class="hidden">
-    <h2>Issued numbers</h2>
+    <h2>Issued <b>numbers</b></h2>
     <div class="bar">
       <div class="msg" id="journal-count"></div>
       <span class="spacer"></span>
@@ -111,9 +112,19 @@
     <div class="msg" id="journal-msg"></div>
   </section>
 
+  <!-- ================= DISCOUNTS ================= -->
+  <section id="view-discounts" class="hidden">
+    <h2>Loyalty <b>discounts</b></h2>
+    <div class="msg" id="discounts-count"></div>
+    <div class="tbl-wrap"><table id="discounts-table"></table></div>
+    <div class="msg" id="discounts-msg"></div>
+    <div class="msg">A discount is granted automatically when a buyer registers a figurine.
+      Mark it used after it is redeemed at checkout — the QR page will show "already used".</div>
+  </section>
+
   <!-- ================= LOGS (admin) ================= -->
   <section id="view-logs" class="hidden">
-    <h2>Logs</h2>
+    <h2>Activity <b>logs</b></h2>
     <div class="seg">
       <button id="logs-tab-checks" class="active">Checks</button>
       <button id="logs-tab-actions">Actions</button>

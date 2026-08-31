@@ -338,7 +338,15 @@ async function runCheck() {
     };
     const res = await api("/api/register", { method: "POST", body: JSON.stringify(body) });
     if (!res.ok) { rm.textContent = res.error || "failed"; rm.className = "msg err"; return; }
-    $("reg-card").outerHTML = `<div class="msg okk">Registered to ${esc(res.owner.firstName)} ${esc(res.owner.lastName)}. Thank you!</div>`;
+    const d = res.discount;
+    $("reg-card").outerHTML = `
+      <div class="discount-card">
+        <div class="dc-title">${d ? esc(String(d.percent)) + "% OFF" : "Registered"}</div>
+        <div class="dc-sub">Registered to ${esc(res.owner.firstName)} ${esc(res.owner.lastName)}.
+          ${d ? "Your loyalty discount is saved to your collection — show its QR code at checkout." : ""}</div>
+        ${res.emailQueued ? '<div class="dc-note">A confirmation email with your sign-in link is on its way.</div>' : ""}
+        <a class="btn light" href="${esc(res.cabinetUrl || "/my")}">Open my collection</a>
+      </div>`;
   };
 }
 $("check-btn").onclick = runCheck;

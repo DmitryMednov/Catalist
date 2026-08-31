@@ -34,6 +34,9 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      # временный доступ по IP до настройки DNS (см. deploy/Caddyfile);
+      # после запуска https-адреса эту строку можно удалить
+      - "8080:8080"
     environment:
       - MERCH_DOMAIN=${MERCH_DOMAIN:-code.catalist.world}
     volumes:

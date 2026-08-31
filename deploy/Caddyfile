@@ -9,6 +9,15 @@
 #     email admin@catalist.world
 # }
 
+# Временный технологический доступ по IP, пока не настроен DNS поддомена:
+#   http://<IP сервера>:8080
+# Трафик здесь не шифруется. После появления A-записи и проверки https-адреса
+# удалите этот блок и проброс порта 8080:8080 из docker-compose.yml,
+# затем: docker compose up -d caddy
+http://:8080 {
+    reverse_proxy merch:8000
+}
+
 {$MERCH_DOMAIN} {
     encode gzip
 

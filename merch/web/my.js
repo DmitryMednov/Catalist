@@ -51,7 +51,7 @@ function renderLogin() {
       <button class="pill pill-primary" id="google-btn">Sign in with Google</button>
       <div class="or-line">— or —</div>` : "";
   $("main").innerHTML = `
-    <h1>Your Catalist <b>collection</b>${SPARK}</h1>
+    <h1>Your Catalist <span class="nowrap"><b>collection</b>${SPARK}</span></h1>
     <div class="pcard">
       ${google}
       <p class="lead">Enter the email you used when registering your figurine — we will send you a sign-in link.</p>
@@ -113,7 +113,8 @@ function figurineCard(f) {
   const kv = (k, v) => `<div class="kvr"><div class="k">${k}</div><div class="v">${v}</div></div>`;
   const photo = f.img
     ? `<img class="fig-photo" src="${esc(f.img)}" alt="${esc(f.product)}">`
-    : `<div class="fig-stub" style="background:${esc(f.hex || "#B9AF98")}"></div>`;
+    : `<div class="fig-stub" style="background:linear-gradient(rgba(20,18,14,.18),rgba(20,18,14,.30)),${esc(f.hex || "#B9AF98")}">
+        <img class="stub-logo" src="/static/logo.png" alt=""></div>`;
   const rows = kv("Edition", `№ ${esc(String(f.seq).padStart(3, "0"))}${f.edition ? ` / ${esc(String(f.edition))}` : ""}`)
     + kv("Manufactured", esc(f.monthLabel))
     + kv("Site", esc(f.site))
@@ -141,7 +142,7 @@ function renderCabinet(data) {
       <a class="pill pill-primary" href="/">Check a serial number</a>
     </div>`;
   $("main").innerHTML = `
-    <h1>My <b>collection</b>${SPARK}</h1>
+    <h1>My <span class="nowrap"><b>collection</b>${SPARK}</span></h1>
     <div class="session-row">
       <div class="who">Signed in as <b>${esc(data.email)}</b></div>
       <button class="linklike" id="logout-btn">Log out</button>

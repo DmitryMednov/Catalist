@@ -313,7 +313,11 @@ async function runCheck() {
         <div class="msg" id="reg-msg"></div>
       </div>`;
   }
-  box.innerHTML = statusCard("genuine", "Genuine",
+  const seal = `<span class="seal"><svg width="34" height="34" viewBox="0 0 34 34" fill="none" aria-hidden="true">
+      <path d="M17 1l3.2 3 4.3-1 1.4 4.2 4.2 1.4-1 4.3 3 3.1-3 3.1 1 4.3-4.2 1.4-1.4 4.2-4.3-1-3.2 3-3.2-3-4.3 1-1.4-4.2-4.2-1.4 1-4.3-3-3.1 3-3.1-1-4.3 4.2-1.4L9.5 3l4.3 1z" fill="currentColor"/>
+      <path d="M11.5 17.5l3.5 3.5 7-7" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg></span>`;
+  box.innerHTML = statusCard("genuine", seal + "Genuine",
     `Serial number ${esc(r.code)} was issued by ${esc((r.certificate && r.certificate.brand) || "Catalist")} and matches the record.`,
     details) + regBlock;
   const gbtn = $("reg-google");

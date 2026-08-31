@@ -15,26 +15,26 @@
   * { box-sizing: border-box; }
   body {
     margin: 0; background: var(--page); color: var(--ink);
-    font-family: -apple-system, "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    font-family: var(--sans);
     font-size: 17px; line-height: 1.45; -webkit-font-smoothing: antialiased;
   }
-  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .mono { font-family: var(--mono); }
 
   .topbar { position: static; background: var(--page); border-bottom: 1.5px solid var(--ink); padding: 14px 16px; }
   .topbar-in { max-width: 560px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .logo { display: flex; align-items: center; gap: 10px; margin: 0; }
   .logo img { height: 30px; width: auto; display: block; }
-  .logo-sub { font-size: 12px; font-weight: 700; letter-spacing: 2.2px; text-transform: uppercase; color: var(--ink); }
+  .logo-sub { white-space: nowrap; font-size: 12px; font-weight: 700; letter-spacing: 2.2px; text-transform: uppercase; color: var(--ink); }
   .top-link { color: var(--ink); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap; padding: 10px 0 10px 12px; }
   .top-link:hover, .top-link:active { text-decoration: underline; }
 
-  .shell { max-width: 560px; margin: 0 auto; padding: 0 16px 72px; }
+  .shell { max-width: 560px; width: 100%; margin: 0 auto; padding: 0 16px 72px; flex: 1; }
 
   h1 {
-    font-weight: 300; font-size: clamp(30px, 8.5vw, 38px); line-height: 1.08;
+    font-family: var(--sans); font-weight: 300; font-size: clamp(30px, 8.5vw, 38px); line-height: 1.08;
     letter-spacing: .5px; text-transform: uppercase; color: var(--ink); margin: 36px 0 12px;
   }
-  h1 b { font-weight: 800; }
+  h1 b { font-family: var(--display); font-weight: 800; letter-spacing: .2px; }
   .spark { width: 22px; height: 22px; margin-left: 6px; vertical-align: baseline; transform: translateY(-12px); color: var(--ink); }
 
   .page-loading { margin-top: 64px; text-align: center; font-size: 15px; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: var(--steel); }
@@ -77,9 +77,10 @@
 
   .fig-card { padding: 0; overflow: hidden; }
   .fig-photo { display: block; width: 100%; height: auto; }
-  .fig-stub { width: 100%; aspect-ratio: 16 / 9; }
+  .fig-stub { width: 100%; aspect-ratio: 16 / 7; display: flex; align-items: center; justify-content: center; }
+  .stub-logo { height: 46px; width: auto; filter: brightness(0) invert(1); opacity: .8; }
   .fig-body { padding: 20px 20px 24px; }
-  .fig-name { font-size: 23px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; line-height: 1.15; }
+  .fig-name { font-family: var(--display); font-size: 22px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; line-height: 1.15; }
   .fig-color { display: flex; align-items: center; gap: 9px; margin-top: 10px; font-size: 15px; font-weight: 600; color: var(--steel); }
   .swatch2 { width: 16px; height: 16px; border-radius: 5px; border: 1px solid rgba(20,18,14,.25); flex: none; }
   .fig-rows { margin-top: 18px; }
@@ -90,18 +91,16 @@
 
   .discount { margin-top: 20px; background: var(--plate); color: #FFFFFF; border-radius: 16px; padding: 20px 20px 24px; }
   .discount-head { display: flex; align-items: center; justify-content: space-between; gap: 10px 12px; flex-wrap: wrap; }
-  .discount-title { font-size: 18px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; }
+  .discount-title { font-family: var(--display); font-size: 17px; font-weight: 800; text-transform: uppercase; letter-spacing: .6px; }
   .badge { display: inline-flex; align-items: center; padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 2px; }
   .badge-active { background: var(--green); color: #FFFFFF; }
   .badge-used { background: var(--steel); color: #FFFFFF; }
   .qr-box { background: #FFFFFF; border-radius: 16px; padding: 12px; width: 100%; max-width: 284px; margin: 20px auto 0; }
   .qr-box img { display: block; margin: 0 auto; }
   .discount-used .qr-box { opacity: .4; }
-  .discount-token { margin-top: 16px; text-align: center; font-size: 20px; font-weight: 700; letter-spacing: 3px; word-break: break-all; color: #FFFFFF; }
+  .discount-token { margin-top: 16px; text-align: center; font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: 3px; word-break: break-all; color: #FFFFFF; }
   .discount-note { margin-top: 10px; text-align: center; font-size: 14px; line-height: 1.5; color: rgba(255,255,255,.75); }
 
-  .site-foot { margin-top: 52px; text-align: center; font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: none; color: var(--steel); }
-  .site-foot a { color: var(--steel); text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -119,8 +118,21 @@
   <main id="main" aria-live="polite">
     <div class="page-loading">Loading&hellip;</div>
   </main>
-  <footer class="site-foot"><a href="https://catalist.world">catalist.world</a></footer>
 </div>
+
+<footer class="site-foot">
+  <div class="foot-inner">
+    <div class="foot-top">
+      <img class="foot-logo" src="/static/logo.png" alt="Catalist">
+    </div>
+    <nav class="foot-links">
+      <a href="https://catalist.world">catalist.world</a>
+      <a href="/">Serial check</a>
+      <a href="/my">My collection</a>
+    </nav>
+    <div class="foot-copy">© 2026 Catalist · Special edition marking</div>
+  </div>
+</footer>
 
 <script src="/static/my.js"></script>
 </body>

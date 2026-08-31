@@ -27,7 +27,11 @@
 
   <!-- ================= CHECK (public) ================= -->
   <section id="view-check">
-    <h2>Check <b>authenticity</b> <svg class="spark" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 20 9 15"/><path d="M12 19 14 12"/><path d="M18 16 22 11"/></svg></h2>
+    <div class="hero">
+      <div class="eyebrow">Catalist · Special edition</div>
+      <h2>Check <b>authenticity</b> <svg class="spark" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 20 9 15"/><path d="M12 19 14 12"/><path d="M18 16 22 11"/></svg></h2>
+      <p class="lead">Every Catalist figurine carries a unique engraved number. Enter it to verify your piece — and register it to your name to get a loyalty discount.</p>
+    </div>
     <div class="card">
       <label for="check-input">Serial number — 8 characters</label>
       <input id="check-input" maxlength="16" autocomplete="off" autocorrect="off" spellcheck="false"
@@ -40,7 +44,10 @@
 
   <!-- ================= GENERATE (PIN) ================= -->
   <section id="view-generate" class="hidden">
-    <h2>Issue a <b>serial number</b></h2>
+    <div class="hero">
+      <div class="eyebrow">Production</div>
+      <h2>Issue a <b>serial number</b></h2>
+    </div>
     <div id="gen-login" class="card pin-box">
       <button class="btn google-btn hidden" data-next="/">Sign in with Google</button>
       <div class="or-sep google-only hidden">— or —</div>
@@ -59,7 +66,7 @@
         <select id="gen-color"></select>
         <div class="row">
           <div>
-            <label for="gen-month">Month of manufacture</label>
+            <label for="gen-month">Month</label>
             <select id="gen-month"></select>
           </div>
           <div>
@@ -93,7 +100,10 @@
 
   <!-- ================= JOURNAL (PIN) ================= -->
   <section id="view-journal" class="hidden">
-    <h2>Issued <b>numbers</b></h2>
+    <div class="hero">
+      <div class="eyebrow">Register</div>
+      <h2>Issued <b>numbers</b></h2>
+    </div>
     <div id="journal-login" class="card pin-box">
       <button class="btn google-btn hidden" data-next="/">Sign in with Google</button>
       <div class="or-sep google-only hidden">— or —</div>
@@ -110,11 +120,21 @@
     </div>
   </section>
 
-  <footer>
-    <a href="https://catalist.world">catalist.world</a> · <a href="/my">my collection</a>
-    <span id="foot-session" class="hidden"> · <span id="foot-who"></span> · <a href="/admin">admin</a> · <a href="#" id="foot-logout">log out</a></span>
-  </footer>
 </div>
+
+<footer class="site-foot">
+  <div class="foot-inner">
+    <div class="foot-top">
+      <img class="foot-logo" src="/static/logo.png" alt="Catalist">
+    </div>
+    <nav class="foot-links">
+      <a href="https://catalist.world">catalist.world</a>
+      <a href="/my">My collection</a>
+      <span id="foot-session" class="hidden"><span id="foot-who"></span> <a href="/admin">Admin</a> <a href="#" id="foot-logout">Log out</a></span>
+    </nav>
+    <div class="foot-copy">© 2026 Catalist · Special edition marking</div>
+  </div>
+</footer>
 
 <script src="/static/common.js"></script>
 <script src="/static/app.js"></script>

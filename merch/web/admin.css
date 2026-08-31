@@ -1,7 +1,7 @@
 /* Дополнения админ-дашборда поверх style.css (подключается после него). */
 
 /* Основная колонка шире, чем на публичной странице */
-.wrap, .head-inner { max-width: 860px; }
+.wrap, .head-inner, .foot-inner { max-width: 860px; }
 
 /* ---------------- шапка ---------------- */
 .brand { flex-wrap: wrap; }
@@ -99,7 +99,7 @@ tr.inactive td { opacity: .55; }
 }
 
 /* ---------------- журнал и логи ---------------- */
-td.details { word-break: break-word; max-width: 420px; }
+td.details { word-break: break-word; max-width: 420px; white-space: normal !important; }
 .st-ok { color: var(--green); font-weight: 700; }
 .st-bad { color: var(--oxide); font-weight: 700; }
 

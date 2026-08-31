@@ -1,0 +1,236 @@
+"""v2: миграции схемы, ролевая модель, Google OAuth, журналы проверок и действий."""
+
+import os
+import sqlite3
+import tempfile
+from urllib.parse import parse_qs, urlparse
+
+from fastapi.testclient import TestClient
+
+from app.main import app, auth as auth_mgr, store
+from app.storage import SCHEMA_VERSION, Storage
+
+ADMIN = {"X-Pin": "9999"}
+PROD = {"X-Pin": "2222"}
+
+
+def _client():
+    return TestClient(app)
+
+
+def _google_login(client, profile, mode="staff", next_path="/admin"):
+    """Проходит OAuth-флоу с подменённым обменом кода на профиль."""
+    orig = auth_mgr._exchange_code
+    auth_mgr._exchange_code = lambda code: profile
+    try:
+        r = client.get(f"/auth/google?mode={mode}&next={next_path}", follow_redirects=False)
+        assert r.status_code == 302
+        state = parse_qs(urlparse(r.headers["location"]).query)["state"][0]
+        r = client.get(f"/auth/google/callback?code=x&state={state}", follow_redirects=False)
+        assert r.status_code == 302
+        return r
+    finally:
+        auth_mgr._exchange_code = orig
+
+
+def _staff_profile(email, first="Ann", last="Smith", sub=None):
+    return {"sub": sub or "sub-" + email, "email": email, "email_verified": True,
+            "name": f"{first} {last}", "given_name": first, "family_name": last, "picture": ""}
+
+
+# ---------- миграции ----------
+
+def test_v1_database_upgrades_in_place():
+    d = tempfile.mkdtemp(prefix="merch-migrate-")
+    db = sqlite3.connect(os.path.join(d, "merch.db"))
+    # схема сборки 1.x: только config + ledger, без schema_migrations
+    db.execute("""CREATE TABLE config (id INTEGER PRIMARY KEY CHECK (id = 1), key TEXT NOT NULL,
+                  catalog TEXT NOT NULL, certificate TEXT NOT NULL, created_at TEXT NOT NULL)""")
+    db.execute("""CREATE TABLE ledger (code TEXT PRIMARY KEY, slot TEXT NOT NULL UNIQUE,
+                  type INTEGER NOT NULL, color INTEGER NOT NULL, month INTEGER NOT NULL,
+                  place INTEGER NOT NULL, seq INTEGER NOT NULL, product TEXT NOT NULL,
+                  color_name TEXT NOT NULL, hex TEXT, img TEXT, site TEXT NOT NULL,
+                  sheet TEXT NOT NULL DEFAULT 'a5', edition INTEGER, issued_at TEXT NOT NULL,
+                  checks INTEGER NOT NULL DEFAULT 0, last_check TEXT, owner_email TEXT,
+                  owner_first TEXT, owner_last TEXT, owner_dob TEXT, registered_at TEXT)""")
+    db.execute("INSERT INTO config VALUES (1, '0123456789abcdef0123456789abcdef', '{\"types\":[],\"places\":[]}', '{}', 'x')")
+    db.execute("""INSERT INTO ledger (code, slot, type, color, month, place, seq, product, color_name,
+                  site, issued_at) VALUES ('AAAA1111', '0-0-0-0-1', 0, 0, 0, 0, 1, 'P', 'C', 'S', 'x')""")
+    db.commit()
+    db.close()
+
+    st = Storage(d)  # миграции применяются в конструкторе
+    assert st.schema_version() == SCHEMA_VERSION
+    rec = st.find_by_code("AAAA1111")
+    assert rec and rec["product"] == "P" and rec["issuedBy"] is None  # данные 1.x целы
+    assert st.list_users() == []
+    st.audit("t", "test", "")
+    assert st.recent_audit(1)[0]["action"] == "test"
+
+
+def test_fresh_database_at_latest_schema():
+    assert store.schema_version() == SCHEMA_VERSION
+
+
+# ---------- вход через Google ----------
+
+def test_google_login_bootstrap_admin():
+    c = _client()
+    r = _google_login(c, _staff_profile("boss@example.com"))
+    assert r.headers["location"] == "/admin"
+    assert "merch_session" in r.headers.get("set-cookie", "")
+    me = c.get("/api/me").json()["auth"]
+    assert me["kind"] == "user" and me["role"] == "admin" and me["email"] == "boss@example.com"
+    st = c.get("/api/status").json()
+    assert st["role"] == "admin" and st["googleAuth"] is True
+
+
+def test_google_login_new_user_gets_none_role():
+    c = _client()
+    _google_login(c, _staff_profile("worker@example.com"))
+    me = c.get("/api/me").json()["auth"]
+    assert me["role"] == "none"
+    r = c.get("/api/catalog")
+    assert r.status_code == 403  # роль ещё не назначена
+    assert "no role yet" in r.json()["error"]
+
+
+def test_google_login_rejects_unverified_email():
+    c = _client()
+    prof = {**_staff_profile("fake@example.com"), "email_verified": False}
+    r = _google_login(c, prof)
+    assert "auth_error" in r.headers["location"]
+    assert c.get("/api/me").json()["auth"] is None
+
+
+def test_buyer_prefill_flow():
+    c = _client()
+    r = _google_login(c, _staff_profile("buyer@example.com", first="Iva", last="Petrova"),
+                      mode="buyer", next_path="/AAAA1111")
+    assert r.headers["location"] == "/AAAA1111"
+    assert "merch_prefill" in r.headers.get("set-cookie", "")
+    pf = c.get("/api/me/prefill").json()["prefill"]
+    assert pf == {"firstName": "Iva", "lastName": "Petrova", "email": "buyer@example.com"}
+    # staff-учётка для покупателя не создаётся
+    assert all(u["email"] != "buyer@example.com" for u in store.list_users())
+
+
+def test_logout_clears_session():
+    c = _client()
+    _google_login(c, _staff_profile("boss@example.com"))
+    assert c.get("/api/me").json()["auth"] is not None
+    c.post("/api/auth/logout")
+    assert c.get("/api/me").json()["auth"] is None
+
+
+# ---------- ролевая модель ----------
+
+def _user_with_role(c, email, role):
+    _google_login(c, _staff_profile(email))
+    u = next(u for u in store.list_users() if u["email"] == email)
+    store.update_user(u["id"], role=role)
+    return u
+
+
+def test_config_role_edits_catalog_but_cannot_issue():
+    c = _client()
+    _user_with_role(c, "cfg@example.com", "config")
+    cat = c.get("/api/catalog").json()
+    assert "catalog" in cat  # config видит полный каталог
+    r = c.put("/api/catalog", json={"catalog": cat["catalog"]})
+    assert r.status_code == 200
+    r = c.post("/api/issue/preview", json={"type": 0, "color": 0, "month": 0, "place": 0, "seq": 1})
+    assert r.status_code == 403
+    assert c.get("/api/ledger").status_code == 403
+
+
+def test_ledger_role_reads_and_exports_only():
+    c = _client()
+    _user_with_role(c, "audit@example.com", "ledger")
+    assert c.get("/api/ledger").status_code == 200
+    csv_r = c.get("/api/ledger/export.csv")
+    assert csv_r.status_code == 200 and csv_r.text.startswith("code,product")
+    assert c.post("/api/issue/preview", json={"type": 0, "color": 0, "month": 0, "place": 0, "seq": 1}).status_code == 403
+    assert c.put("/api/catalog", json={"catalog": {"types": [], "places": []}}).status_code == 403
+    assert c.delete("/api/ledger/XXXXXXXX").status_code == 403  # удаление — только admin
+
+
+def test_pin_roles_still_work():
+    c = _client()
+    assert c.get("/api/ledger", headers=PROD).status_code == 200
+    assert c.get("/api/admin/stats", headers=PROD).status_code == 403
+    assert c.get("/api/admin/stats", headers=ADMIN).status_code == 200
+
+
+# ---------- администрирование ----------
+
+def test_admin_users_management_and_self_guard():
+    c = _client()
+    _google_login(c, _staff_profile("boss@example.com"))
+    users = c.get("/api/admin/users").json()["users"]
+    worker = next(u for u in users if u["email"] == "worker@example.com")
+    me = next(u for u in users if u["email"] == "boss@example.com")
+    r = c.patch(f"/api/admin/users/{worker['id']}", json={"role": "production"})
+    assert r.status_code == 200
+    assert store.get_user(worker["id"])["role"] == "production"
+    assert c.patch(f"/api/admin/users/{worker['id']}", json={"role": "boss"}).status_code == 400
+    assert c.patch(f"/api/admin/users/{me['id']}", json={"role": "ledger"}).status_code == 409
+    assert c.patch(f"/api/admin/users/{me['id']}", json={"active": False}).status_code == 409
+
+
+def test_deactivated_user_loses_session():
+    c = _client()
+    _google_login(c, _staff_profile("gone@example.com"))
+    u = next(u for u in store.list_users() if u["email"] == "gone@example.com")
+    store.update_user(u["id"], active=False)
+    assert c.get("/api/me").json()["auth"] is None
+
+
+def test_verify_log_records_all_checks():
+    c = _client()
+    code = c.post("/api/issue/confirm",
+                  json={"type": 0, "color": 1, "month": 3, "place": 0, "seq": 900},
+                  headers=ADMIN).json()["code"]
+    c.post("/api/verify", json={"code": code})
+    c.post("/api/verify", json={"code": "AAAAAAAB"})
+    c.post("/api/verify", json={"code": "XYZ"})
+    entries = c.get("/api/admin/verify-log?limit=10", headers=ADMIN).json()["entries"]
+    statuses = [e["status"] for e in entries[:3]]
+    assert "issued" in statuses and "malformed" in statuses
+    only_issued = c.get("/api/admin/verify-log?status=issued", headers=ADMIN).json()["entries"]
+    assert all(e["status"] == "issued" for e in only_issued)
+    assert any(e["code"] == code for e in only_issued)
+
+
+def test_audit_log_tracks_actions():
+    c = _client()
+    code = c.post("/api/issue/confirm",
+                  json={"type": 0, "color": 1, "month": 3, "place": 0, "seq": 901},
+                  headers=ADMIN).json()["code"]
+    c.delete(f"/api/ledger/{code}", headers=ADMIN)
+    entries = c.get("/api/admin/audit-log?limit=20", headers=ADMIN).json()["entries"]
+    actions = [e["action"] for e in entries]
+    assert "issue_save" in actions and "ledger_delete" in actions
+    save = next(e for e in entries if e["action"] == "issue_save")
+    assert save["actor"] == "pin:admin" and code in save["details"]
+
+
+def test_admin_stats_shape():
+    r = _client().get("/api/admin/stats", headers=ADMIN).json()
+    assert r["ok"] and set(r["verify7d"]) == {"issued", "not_issued", "mismatch", "malformed"}
+    assert isinstance(r["byProduct"], list) and r["dbSchema"] == SCHEMA_VERSION
+    assert r["version"].count(".") == 2
+
+
+def test_issued_by_recorded():
+    c = _client()
+    code = c.post("/api/issue/confirm",
+                  json={"type": 0, "color": 1, "month": 3, "place": 0, "seq": 902},
+                  headers=PROD).json()["code"]
+    rec = next(x for x in c.get("/api/ledger", headers=PROD).json()["records"] if x["code"] == code)
+    assert rec["issuedBy"] == "pin:production"
+
+
+def test_admin_page_served():
+    r = _client().get("/admin")
+    assert r.status_code == 200

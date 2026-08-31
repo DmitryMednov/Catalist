@@ -11,9 +11,14 @@ const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 
 let PIN = sessionStorage.getItem("merch_pin") || "";
 let ROLE = null;
+let AUTH = null;        // /api/me: {kind, role, email, name} или null
+let GOOGLE_AUTH = false;
 let CATALOG = null;
 let CURRENT_MONTH = 0;
 let PREVIEW = null; // { code, req }
+
+// какие роли открывают вкладку (admin проходит всюду)
+const TAB_ROLES = { gen: ["production", "admin"], journal: ["production", "ledger", "admin"] };
 
 async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
@@ -35,26 +40,61 @@ function showTab(name) {
 }
 tabs.forEach((t) => { $(`tab-${t}`).onclick = () => showTab(t); });
 
-/* ---------------- PIN session ---------------- */
+/* ---------------- сессия персонала: Google или PIN ---------------- */
 async function resolveRole() {
   const st = await api("/api/status");
   CURRENT_MONTH = st.currentMonth ?? 0;
   ROLE = st.role || null;
+  GOOGLE_AUTH = !!st.googleAuth;
+  const meResp = await api("/api/me");
+  AUTH = meResp.auth || null;
+  renderSessionFooter();
   return st;
+}
+function renderSessionFooter() {
+  const box = $("foot-session");
+  if (!box) return;
+  const authed = AUTH && AUTH.kind === "user";
+  box.classList.toggle("hidden", !authed);
+  if (authed) $("foot-who").textContent = `${AUTH.email} (${AUTH.role})`;
+}
+function roleAllows(which) {
+  return ROLE && (ROLE === "admin" || TAB_ROLES[which].includes(ROLE));
 }
 async function enterStaff(which) {
   if (!ROLE) await resolveRole();
-  const authed = !!ROLE;
+  document.querySelectorAll(".google-btn").forEach((b) => b.classList.toggle("hidden", !GOOGLE_AUTH || !!ROLE));
+  document.querySelectorAll(".or-sep").forEach((b) => b.classList.toggle("hidden", !GOOGLE_AUTH || !!ROLE));
+  const allowed = roleAllows(which);
+  const deniedMsg = ROLE && !allowed
+    ? (ROLE === "none"
+        ? "Your account has no role yet — ask the administrator to assign one."
+        : `Your role (${ROLE}) does not open this module.`)
+    : "";
   if (which === "gen") {
-    $("gen-login").classList.toggle("hidden", authed);
-    $("gen-app").classList.toggle("hidden", !authed);
-    if (authed) loadCatalog();
+    $("gen-login").classList.toggle("hidden", allowed);
+    $("gen-app").classList.toggle("hidden", !allowed);
+    $("pin-msg").textContent = deniedMsg;
+    $("pin-msg").className = "msg err";
+    if (allowed) loadCatalog();
   } else {
-    $("journal-login").classList.toggle("hidden", authed);
-    $("journal-app").classList.toggle("hidden", !authed);
-    if (authed) loadJournal();
+    $("journal-login").classList.toggle("hidden", allowed);
+    $("journal-app").classList.toggle("hidden", !allowed);
+    $("pin-msg2").textContent = deniedMsg;
+    $("pin-msg2").className = "msg err";
+    if (allowed) loadJournal();
   }
 }
+document.querySelectorAll(".google-btn").forEach((b) => {
+  b.onclick = () => { location.href = "/auth/google?mode=staff&next=" + encodeURIComponent(b.dataset.next || "/"); };
+});
+const footLogout = $("foot-logout");
+if (footLogout) footLogout.onclick = async (e) => {
+  e.preventDefault();
+  await api("/api/auth/logout", { method: "POST" });
+  sessionStorage.removeItem("merch_pin");
+  location.href = "/";
+};
 async function tryPin(inputId, msgId) {
   const el = $(msgId);
   PIN = $(inputId).value.trim();
@@ -273,6 +313,7 @@ async function runCheck() {
         </div>
         <label>Date of birth</label><input id="reg-dob" type="date">
         <label>Email</label><input id="reg-email" type="email" autocomplete="email" placeholder="you@example.com">
+        ${GOOGLE_AUTH ? '<button class="btn ghost" id="reg-google">Fill from Google</button>' : ""}
         <button class="btn" id="reg-btn">Register</button>
         <div class="msg" id="reg-msg"></div>
       </div>`;
@@ -280,6 +321,19 @@ async function runCheck() {
   box.innerHTML = statusCard("genuine", "Genuine",
     `Serial number ${esc(r.code)} was issued by ${esc((r.certificate && r.certificate.brand) || "Catalist")} and matches the record.`,
     details) + regBlock;
+  const gbtn = $("reg-google");
+  if (gbtn) gbtn.onclick = () => {
+    location.href = "/auth/google?mode=buyer&next=" + encodeURIComponent("/" + code);
+  };
+  // после возврата из Google данные лежат в короткоживущей cookie
+  if ($("reg-first")) {
+    const pf = await api("/api/me/prefill");
+    if (pf.ok && pf.prefill) {
+      $("reg-first").value = $("reg-first").value || pf.prefill.firstName;
+      $("reg-last").value = $("reg-last").value || pf.prefill.lastName;
+      $("reg-email").value = $("reg-email").value || pf.prefill.email;
+    }
+  }
   const btn = $("reg-btn");
   if (btn) btn.onclick = async () => {
     const rm = $("reg-msg");

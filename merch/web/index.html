@@ -42,6 +42,8 @@
   <section id="view-generate" class="hidden">
     <h2>Issue a serial number</h2>
     <div id="gen-login" class="card pin-box">
+      <button class="btn google-btn hidden" data-next="/">Sign in with Google</button>
+      <div class="or-sep google-only hidden">— or —</div>
       <label for="pin-input">Access PIN</label>
       <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
       <button class="btn" id="pin-btn">Open session</button>
@@ -93,6 +95,8 @@
   <section id="view-journal" class="hidden">
     <h2>Issued numbers</h2>
     <div id="journal-login" class="card pin-box">
+      <button class="btn google-btn hidden" data-next="/">Sign in with Google</button>
+      <div class="or-sep google-only hidden">— or —</div>
       <label for="pin-input2">Access PIN</label>
       <input id="pin-input2" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
       <button class="btn" id="pin-btn2">Open session</button>
@@ -108,6 +112,7 @@
 
   <footer>
     <a href="https://catalist.world">catalist.world</a>
+    <span id="foot-session" class="hidden"> · <span id="foot-who"></span> · <a href="/admin">admin</a> · <a href="#" id="foot-logout">log out</a></span>
   </footer>
 </div>
 

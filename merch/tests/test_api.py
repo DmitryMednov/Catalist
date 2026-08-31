@@ -121,7 +121,8 @@ def test_register_once():
 
 def test_delete_admin_only_and_frees_slot():
     code = _issue(seq=106)
-    assert client.delete(f"/api/ledger/{code}", headers=PROD).status_code == 401
+    # с v2 аутентифицированный запрос с недостаточной ролью получает 403
+    assert client.delete(f"/api/ledger/{code}", headers=PROD).status_code == 403
     assert client.delete(f"/api/ledger/{code}", headers=ADMIN).status_code == 200
     assert client.post("/api/verify", json={"code": code}).json()["status"] == "not_issued"
     code2 = _issue(seq=106)  # слот освободился — комбинация выдана заново тем же кодом

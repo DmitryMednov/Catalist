@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Catalist — administration</title>
+<link rel="icon" href="/static/logo.png">
+<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+<header>
+  <div class="head-inner">
+    <div class="brand">
+      <img src="/static/logo.png" alt="Catalist">
+      <span class="sub">Administration</span>
+      <a class="back-link" href="/">← Serial numbers</a>
+    </div>
+    <div id="who" class="who hidden"></div>
+    <nav id="nav" class="hidden">
+      <button id="tab-overview" class="hidden"><span class="t">Overview</span><span class="s">stats</span></button>
+      <button id="tab-users" class="hidden"><span class="t">Users</span><span class="s">access</span></button>
+      <button id="tab-catalog" class="hidden"><span class="t">Catalogue</span><span class="s">products</span></button>
+      <button id="tab-journal" class="hidden"><span class="t">Journal</span><span class="s">issued</span></button>
+      <button id="tab-logs" class="hidden"><span class="t">Logs</span><span class="s">activity</span></button>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+  <div id="boot-msg" class="msg">Loading…</div>
+
+  <!-- ================= SIGN IN ================= -->
+  <section id="view-login" class="hidden">
+    <h2>Staff access</h2>
+    <div class="card pin-box">
+      <div id="google-block" class="hidden">
+        <button class="btn" id="google-btn">Sign in with Google</button>
+        <div class="or-sep">— or —</div>
+      </div>
+      <label for="pin-input">Access PIN</label>
+      <input id="pin-input" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+      <button class="btn" id="pin-btn">Open session</button>
+      <div class="msg" id="login-msg"></div>
+    </div>
+  </section>
+
+  <!-- ================= NO ROLE YET ================= -->
+  <section id="view-norole" class="hidden">
+    <h2>Access pending</h2>
+    <div class="card pin-box">
+      <div class="status-sub">Your account is created. Ask the administrator to assign you a role.</div>
+      <button class="btn ghost" id="logout-norole">Log out</button>
+    </div>
+  </section>
+
+  <!-- ================= PRODUCTION ROLE ================= -->
+  <section id="view-production" class="hidden">
+    <h2>Production</h2>
+    <div class="card pin-box">
+      <div class="status-sub">Serial issuing lives on the <a href="/">main page</a>.</div>
+      <button class="btn ghost" id="logout-production">Log out</button>
+    </div>
+  </section>
+
+  <!-- ================= OVERVIEW (admin) ================= -->
+  <section id="view-overview" class="hidden">
+    <h2>Overview</h2>
+    <div class="stat-grid" id="stat-grid"></div>
+    <h2>By product</h2>
+    <div class="tbl-wrap"><table id="stats-products"></table></div>
+    <div class="svc-meta" id="stats-meta"></div>
+    <div class="msg" id="overview-msg"></div>
+  </section>
+
+  <!-- ================= USERS (admin) ================= -->
+  <section id="view-users" class="hidden">
+    <h2>Users</h2>
+    <div class="tbl-wrap"><table id="users-table"></table></div>
+    <div class="msg" id="users-msg"></div>
+  </section>
+
+  <!-- ================= CATALOGUE (admin, config) ================= -->
+  <section id="view-catalog" class="hidden">
+    <h2>Catalogue <span id="cat-dirty" class="dirty hidden">unsaved changes</span></h2>
+    <div class="warn-note">Indexes of products, colours and sites are encoded into issued serial numbers.
+      Do not reorder or delete entries that already have issued numbers — switch them off instead.</div>
+    <h2>Production sites</h2>
+    <div class="card">
+      <div id="cat-places"></div>
+      <button class="btn ghost" id="cat-add-place">+ Add site</button>
+    </div>
+    <h2>Products</h2>
+    <div id="cat-types"></div>
+    <button class="btn ghost" id="cat-add-type">+ Add product</button>
+    <button class="btn" id="cat-save" disabled>Save catalogue</button>
+    <div class="msg" id="cat-msg"></div>
+  </section>
+
+  <!-- ================= JOURNAL (admin, ledger) ================= -->
+  <section id="view-journal" class="hidden">
+    <h2>Issued numbers</h2>
+    <div class="bar">
+      <div class="msg" id="journal-count"></div>
+      <span class="spacer"></span>
+      <button class="btn ghost mini" id="journal-export">Export CSV</button>
+    </div>
+    <div class="tbl-wrap"><table id="journal-table"></table></div>
+    <button class="btn danger hidden" id="journal-clear">Delete all records</button>
+    <div class="msg" id="journal-msg"></div>
+  </section>
+
+  <!-- ================= LOGS (admin) ================= -->
+  <section id="view-logs" class="hidden">
+    <h2>Logs</h2>
+    <div class="seg">
+      <button id="logs-tab-checks" class="active">Checks</button>
+      <button id="logs-tab-actions">Actions</button>
+    </div>
+    <div id="logs-checks">
+      <div class="filter-row">
+        <label for="verify-filter">Status</label>
+        <select id="verify-filter">
+          <option value="all">all</option>
+          <option value="issued">issued</option>
+          <option value="not_issued">not_issued</option>
+          <option value="mismatch">mismatch</option>
+          <option value="malformed">malformed</option>
+        </select>
+      </div>
+      <div class="tbl-wrap"><table id="verify-table"></table></div>
+    </div>
+    <div id="logs-actions" class="hidden">
+      <div class="tbl-wrap"><table id="audit-table"></table></div>
+    </div>
+    <div class="msg" id="logs-msg"></div>
+  </section>
+
+  <footer>
+    <a href="https://catalist.world">catalist.world</a>
+  </footer>
+</div>
+
+<script src="/static/admin.js"></script>
+</body>
+</html>

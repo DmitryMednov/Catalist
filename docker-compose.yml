@@ -21,6 +21,9 @@ services:
       - MERCH_SERIAL_KEY=${MERCH_SERIAL_KEY:-}
       - MERCH_PUBLIC_URL=https://${MERCH_DOMAIN:-code.catalist.world}
       - MERCH_BEHIND_PROXY=1
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - MERCH_ADMIN_EMAILS=${MERCH_ADMIN_EMAILS:-}
     volumes:
       - merch-data:/app/data
 

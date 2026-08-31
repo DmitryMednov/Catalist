@@ -90,6 +90,7 @@ td .dim { color: var(--steel); font-size: 10.5px; }
 .del { cursor: pointer; border: none; background: none; color: var(--oxide); font-size: 14px; padding: 2px 6px; }
 
 .pin-box { max-width: 340px; margin: 40px auto 0; }
+.or-sep { text-align: center; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--steel); margin: 12px 0 2px; }
 footer { margin-top: 48px; text-align: center; font-size: 10px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--steel); }
 footer a { color: var(--steel); }
 .hidden { display: none !important; }

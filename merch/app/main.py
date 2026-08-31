@@ -1,34 +1,49 @@
 """HTTP API модуля мерч-кодов Catalist.
 
-Эндпоинты повторяют операции api.* прототипа один в один (см.
-docs/merch-module.md — там таблица соответствия). Формат ответов и
-тексты статусов сохранены, чтобы поведение совпадало с описанием
-системы: generate ничего не записывает, запись создаёт только save.
+Эндпоинты выдачи/проверки повторяют операции api.* прототипа один в один
+(см. docs/merch-module.md — таблица соответствия). Семантика сохранена:
+generate (preview) ничего не записывает, запись создаёт только save
+(confirm); уникальность номера и слота гарантирует БД.
+
+Ролевая модель (полная матрица — в docs/merch-module.md):
+  admin      — всё;
+  config     — каталог (просмотр и правка);
+  production — выдача номеров, каталог (просмотр), журнал (просмотр);
+  ledger     — журнал (просмотр) и экспорт CSV;
+  публично   — проверка номера и регистрация владельца (с rate limit).
 """
 
 from __future__ import annotations
 
+import csv
+import io
 import os
 import re
 from datetime import datetime, timezone
+from urllib.parse import quote
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from . import serials
+from .auth import PREFILL_COOKIE, SESSION_COOKIE, SESSION_TTL_HOURS, Auth, AuthError, Principal
 from .security import RateLimiter, Roles, client_ip
+from .storage import ROLES as USER_ROLES
 from .storage import Storage
+from .version import APP_VERSION
 
 DATA_DIR = os.environ.get("MERCH_DATA_DIR", "data")
 PUBLIC_URL = (os.environ.get("MERCH_PUBLIC_URL") or "https://code.catalist.world").rstrip("/")
 MAIN_SITE = os.environ.get("MERCH_MAIN_SITE", "https://catalist.world")
+SECURE_COOKIES = os.environ.get("MERCH_BEHIND_PROXY") == "1"
 
 VERIFY_PER_MIN = int(os.environ.get("MERCH_VERIFY_PER_MIN", "30"))
 REGISTER_PER_MIN = int(os.environ.get("MERCH_REGISTER_PER_MIN", "10"))
 ISSUE_PER_MIN = int(os.environ.get("MERCH_ISSUE_PER_MIN", "60"))
+VERIFYLOG_DAYS = int(os.environ.get("MERCH_VERIFYLOG_DAYS", "365"))
 
 app = FastAPI(title="Catalist merch codes", docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(
@@ -43,6 +58,8 @@ app.add_middleware(
 store = Storage(DATA_DIR, os.environ.get("MERCH_SERIAL_KEY") or None)
 roles = Roles()
 limiter = RateLimiter()
+auth = Auth(store, roles, PUBLIC_URL)
+store.prune_verify_log(VERIFYLOG_DAYS)
 
 WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "web")
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
@@ -52,20 +69,20 @@ def _err(status: int, message: str, **extra) -> JSONResponse:
     return JSONResponse({"ok": False, "error": message, **extra}, status_code=status)
 
 
-def _role(request: Request) -> str | None:
-    return roles.role_of(request.headers.get("x-pin"))
-
-
-def _guard_staff(request: Request, need_admin: bool = False):
-    """None — доступ разрешён, иначе готовый ответ с ошибкой."""
-    if not roles.configured:
-        return _err(503, "PINs are not configured on the server")
+def _guard(request: Request, *allowed: str) -> tuple[Principal | None, JSONResponse | None]:
+    """Пускает admin всегда, остальных — по списку ролей; (principal, ошибка)."""
     if not limiter.allow(client_ip(request), "staff", ISSUE_PER_MIN):
-        return _err(429, "too many requests")
-    role = _role(request)
-    if role is None or (need_admin and role != "admin"):
-        return _err(401, "unauthorized")
-    return None
+        return None, _err(429, "too many requests")
+    p = auth.principal(request)
+    if p is None:
+        if not roles.configured and not auth.google_configured:
+            return None, _err(503, "neither PINs nor Google sign-in are configured on the server")
+        return None, _err(401, "unauthorized")
+    if p.role == "admin" or p.role in allowed:
+        return p, None
+    if p.role == "none":
+        return None, _err(403, "your account has no role yet — ask the administrator")
+    return None, _err(403, "your role does not allow this action")
 
 
 def _current_month_index() -> int:
@@ -110,25 +127,89 @@ class CatalogReq(BaseModel):
     catalog: dict
 
 
-# ---------- служебные эндпоинты (PIN) ----------
+class UserPatchReq(BaseModel):
+    role: str | None = None
+    active: bool | None = None
+
+
+# ---------- статус и профиль ----------
 
 @app.get("/api/status")
 async def status(request: Request):
+    p = auth.principal(request)
     return {
         "ok": True,
         "provisioned": True,
+        "version": APP_VERSION,
         "keyFingerprint": store.key_fingerprint(),
         "baseYear": serials.BASE_YEAR,
         "currentMonth": _current_month_index(),
         "issued": store.count_records(),
-        "role": _role(request),
+        "role": p.role if p else None,
+        "googleAuth": auth.google_configured,
         "publicUrl": PUBLIC_URL,
     }
 
 
+@app.get("/api/me")
+async def me(request: Request):
+    p = auth.principal(request)
+    return {"ok": True, "auth": p.as_dict() if p else None}
+
+
+@app.get("/api/me/prefill")
+async def me_prefill(request: Request):
+    """Профиль Google для автозаполнения формы регистрации владельца."""
+    return {"ok": True, "prefill": auth.prefill_from(request)}
+
+
+# ---------- вход через Google ----------
+
+@app.get("/auth/google")
+async def auth_google(request: Request, mode: str = "staff", next: str = "/admin"):
+    try:
+        return RedirectResponse(auth.auth_url(mode, next), status_code=302)
+    except AuthError as e:
+        return _err(503, str(e))
+
+
+@app.get("/auth/google/callback")
+async def auth_google_callback(request: Request, code: str = "", state: str = "", error: str = ""):
+    # при ошибке возвращаем туда, откуда начинался вход (next из state)
+    st = auth.unsign(state or "")
+    fallback = (st or {}).get("next") or "/admin"
+    if error:  # пользователь отменил вход на стороне Google
+        return RedirectResponse(f"{fallback}?auth_error={quote(error)}", status_code=302)
+    try:
+        mode, value, next_path = auth.handle_callback(code, state, client_ip(request))
+    except AuthError as e:
+        return RedirectResponse(f"{fallback}?auth_error={quote(str(e))}", status_code=302)
+    resp = RedirectResponse(next_path, status_code=302)
+    if mode == "staff":
+        resp.set_cookie(SESSION_COOKIE, value, max_age=SESSION_TTL_HOURS * 3600,
+                        httponly=True, secure=SECURE_COOKIES, samesite="lax")
+    else:
+        resp.set_cookie(PREFILL_COOKIE, value, max_age=600,
+                        httponly=True, secure=SECURE_COOKIES, samesite="lax")
+    return resp
+
+
+@app.post("/api/auth/logout")
+async def logout(request: Request):
+    token = request.cookies.get(SESSION_COOKIE)
+    if token:
+        store.delete_session(token)
+    resp = JSONResponse({"ok": True})
+    resp.delete_cookie(SESSION_COOKIE)
+    resp.delete_cookie(PREFILL_COOKIE)
+    return resp
+
+
+# ---------- каталог ----------
+
 @app.get("/api/catalog")
 async def get_catalog(request: Request):
-    denied = _guard_staff(request)
+    p, denied = _guard(request, "config", "production")
     if denied:
         return denied
     catalog = store.catalog()
@@ -138,14 +219,14 @@ async def get_catalog(request: Request):
         "certificate": store.certificate(),
         "currentMonth": _current_month_index(),
     }
-    if _role(request) == "admin":
+    if p.role in ("admin", "config"):
         out["catalog"] = catalog
     return out
 
 
 @app.put("/api/catalog")
 async def put_catalog(request: Request, body: CatalogReq):
-    denied = _guard_staff(request, need_admin=True)
+    p, denied = _guard(request, "config")
     if denied:
         return denied
     cat = body.catalog
@@ -159,8 +240,12 @@ async def put_catalog(request: Request, body: CatalogReq):
         if len(t["colors"]) > serials.CAP["color"]:
             return _err(400, "too many colors for one type")
     store.save_catalog(cat)
+    store.audit(p.label, "catalog_update",
+                f"types={len(cat['types'])} places={len(cat['places'])}")
     return {"ok": True}
 
+
+# ---------- выдача номеров ----------
 
 def _validate_issue(req: IssueReq) -> tuple[dict | None, JSONResponse | None]:
     """Возвращает (контекст изделия, None) или (None, ответ-ошибка)."""
@@ -180,7 +265,7 @@ def _validate_issue(req: IssueReq) -> tuple[dict | None, JSONResponse | None]:
 @app.post("/api/issue/preview")
 async def issue_preview(request: Request, req: IssueReq):
     """Generate: выдаёт код для выбора, ничего не записывая. Слот не занимается."""
-    denied = _guard_staff(request)
+    p, denied = _guard(request, "production")
     if denied:
         return denied
     ctx, bad = _validate_issue(req)
@@ -196,7 +281,7 @@ async def issue_preview(request: Request, req: IssueReq):
 @app.post("/api/issue/confirm")
 async def issue_confirm(request: Request, req: IssueReq):
     """Save: единственное действие, создающее запись в журнале."""
-    denied = _guard_staff(request)
+    p, denied = _guard(request, "production")
     if denied:
         return denied
     ctx, bad = _validate_issue(req)
@@ -210,22 +295,24 @@ async def issue_confirm(request: Request, req: IssueReq):
     code = serials.encode_serial(fields, store.key)
     if req.expectedCode and code != req.expectedCode:
         return _err(409, "the selection changed — generate again")
-    t, c, p = ctx["type"], ctx["color"], ctx["place"]
+    t, c, pl = ctx["type"], ctx["color"], ctx["place"]
     inserted = store.insert_record({
         "code": code, "slot": slot,
         "type": req.type, "color": req.color, "month": req.month, "place": req.place, "seq": req.seq,
         "product": t["name"], "colorName": c["name"], "hex": c.get("hex"), "img": c.get("img"),
-        "site": p["name"], "sheet": t.get("sheet") or "a5", "edition": t.get("edition"),
+        "site": pl["name"], "sheet": t.get("sheet") or "a5", "edition": t.get("edition"),
+        "issuedBy": p.label,
     })
     if not inserted:
         taken = store.find_by_slot(slot)
         return _err(409, "already issued", code=taken["code"] if taken else None)
+    store.audit(p.label, "issue_save", f"{code} {t['name']} / {c['name']} № {req.seq}")
     return {"ok": True, "code": code, "verifyUrl": f"{PUBLIC_URL}/{code}"}
 
 
 @app.get("/api/issue/next-seq")
 async def next_seq(request: Request, type: int, color: int, month: int, place: int):
-    denied = _guard_staff(request)
+    p, denied = _guard(request, "production")
     if denied:
         return denied
     used = store.used_seqs(type, color, month, place)
@@ -235,58 +322,163 @@ async def next_seq(request: Request, type: int, color: int, month: int, place: i
     return {"ok": True, "seq": n, "used": len(used)}
 
 
+# ---------- журнал ----------
+
+def _ledger_public(records: list[dict]) -> list[dict]:
+    """Журнал наружу: без email/даты рождения владельца."""
+    out = []
+    for r in records:
+        r = dict(r)
+        r["monthLabel"] = serials.month_label(r["month"])
+        if r["owner"]:
+            r["owner"] = {"firstName": r["owner"]["firstName"], "lastName": r["owner"]["lastName"]}
+        out.append(r)
+    return out
+
+
 @app.get("/api/ledger")
 async def ledger(request: Request):
-    denied = _guard_staff(request)
+    p, denied = _guard(request, "production", "ledger")
     if denied:
         return denied
-    records = store.all_records()
-    for r in records:
-        r["monthLabel"] = serials.month_label(r["month"])
-        if r["owner"]:  # журнал не отдаёт персональные данные целиком
-            r["owner"] = {"firstName": r["owner"]["firstName"], "lastName": r["owner"]["lastName"]}
-    return {"ok": True, "records": records}
+    return {"ok": True, "records": _ledger_public(store.all_records())}
+
+
+@app.get("/api/ledger/export.csv")
+async def ledger_export(request: Request):
+    p, denied = _guard(request, "ledger")
+    if denied:
+        return denied
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["code", "product", "color", "seq", "edition", "month", "site",
+                "issued_at", "issued_by", "checks", "registered",
+                "owner_first_name", "owner_last_name", "owner_email"])
+    for r in store.all_records():
+        o = r["owner"] or {}
+        w.writerow([r["code"], r["product"], r["colorName"], r["seq"], r["edition"] or "",
+                    serials.month_label(r["month"]), r["site"], r["issuedAt"], r["issuedBy"] or "",
+                    r["checks"], "yes" if r["owner"] else "no",
+                    o.get("firstName", ""), o.get("lastName", ""), o.get("email", "")])
+    store.audit(p.label, "ledger_export", f"{store.count_records()} records")
+    return Response(
+        buf.getvalue(), media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=catalist-ledger.csv"},
+    )
 
 
 @app.delete("/api/ledger/{code}")
 async def delete_record(request: Request, code: str):
     """Удаление освобождает слот — комбинацию можно выдать заново."""
-    denied = _guard_staff(request, need_admin=True)
+    p, denied = _guard(request)  # только admin
     if denied:
         return denied
-    if not store.delete_record(serials.normalize(code)):
+    norm = serials.normalize(code)
+    if not store.delete_record(norm):
         return _err(404, "not found")
+    store.audit(p.label, "ledger_delete", norm)
     return {"ok": True}
 
 
 @app.delete("/api/ledger")
 async def clear_ledger(request: Request, confirm: str = ""):
-    denied = _guard_staff(request, need_admin=True)
+    p, denied = _guard(request)  # только admin
     if denied:
         return denied
     if confirm != "all":
         return _err(400, "pass ?confirm=all to delete every record")
-    return {"ok": True, "deleted": store.clear_ledger()}
+    deleted = store.clear_ledger()
+    store.audit(p.label, "ledger_clear", f"{deleted} records")
+    return {"ok": True, "deleted": deleted}
+
+
+# ---------- администрирование ----------
+
+@app.get("/api/admin/stats")
+async def admin_stats(request: Request):
+    p, denied = _guard(request)
+    if denied:
+        return denied
+    return {
+        "ok": True, **store.stats(),
+        "verify7d": store.verify_stats_since(7),
+        "version": APP_VERSION,
+        "keyFingerprint": store.key_fingerprint(),
+        "dbSchema": store.schema_version(),
+    }
+
+
+@app.get("/api/admin/users")
+async def admin_users(request: Request):
+    p, denied = _guard(request)
+    if denied:
+        return denied
+    return {"ok": True, "users": store.list_users()}
+
+
+@app.patch("/api/admin/users/{user_id}")
+async def admin_user_patch(request: Request, user_id: int, body: UserPatchReq):
+    p, denied = _guard(request)
+    if denied:
+        return denied
+    if body.role is not None and body.role not in USER_ROLES:
+        return _err(400, f"role must be one of: {', '.join(USER_ROLES)}")
+    if p.user_id == user_id and (body.active is False or (body.role is not None and body.role != "admin")):
+        return _err(409, "you cannot demote or deactivate your own account")
+    target = store.get_user(user_id)
+    if not target:
+        return _err(404, "user not found")
+    store.update_user(user_id, role=body.role, active=body.active)
+    changes = []
+    if body.role is not None:
+        changes.append(f"role={body.role}")
+    if body.active is not None:
+        changes.append(f"active={body.active}")
+    store.audit(p.label, "user_update", f"{target['email']}: {', '.join(changes) or 'no-op'}")
+    return {"ok": True}
+
+
+@app.get("/api/admin/verify-log")
+async def admin_verify_log(request: Request, limit: int = 200, status: str = ""):
+    p, denied = _guard(request)
+    if denied:
+        return denied
+    if status and status not in ("issued", "not_issued", "mismatch", "malformed"):
+        return _err(400, "unknown status filter")
+    return {"ok": True, "entries": store.recent_verifies(min(max(limit, 1), 1000), status or None)}
+
+
+@app.get("/api/admin/audit-log")
+async def admin_audit_log(request: Request, limit: int = 200):
+    p, denied = _guard(request)
+    if denied:
+        return denied
+    return {"ok": True, "entries": store.recent_audit(min(max(limit, 1), 1000))}
 
 
 # ---------- публичные эндпоинты ----------
 
 @app.post("/api/verify")
 async def verify(request: Request, req: VerifyReq):
-    if not limiter.allow(client_ip(request), "verify", VERIFY_PER_MIN):
+    ip = client_ip(request)
+    if not limiter.allow(ip, "verify", VERIFY_PER_MIN):
         return _err(429, "too many requests")
     dec = serials.decode_serial(req.code, store.key)
     if not dec.ok:
         # набран с ошибкой: не та длина, не тот алфавит или контрольный знак
+        store.log_verify(dec.norm[:16], "malformed", ip)
         return {"ok": False, "status": "malformed", "code": dec.norm, "reason": dec.reason}
     rec = store.find_by_code(dec.norm)
     if not rec:
         # корректный по формату, но не выпускался
+        store.log_verify(dec.norm, "not_issued", ip)
         return {"ok": False, "status": "not_issued", "code": dec.norm}
     if serials.slot_of(dec.fields) != rec["slot"]:
         # расшифровка не совпадает с записью журнала
+        store.log_verify(dec.norm, "mismatch", ip)
         return {"ok": False, "status": "mismatch", "code": dec.norm}
     checks = store.bump_checks(dec.norm)
+    store.log_verify(dec.norm, "issued", ip)
     return {
         "ok": True, "status": "issued", "code": dec.norm,
         "product": rec["product"], "color": rec["colorName"], "hex": rec["hex"], "img": rec["img"],
@@ -334,7 +526,7 @@ async def register(request: Request, req: RegisterReq):
 
 @app.get("/healthz")
 async def healthz():
-    return {"ok": True}
+    return {"ok": True, "version": APP_VERSION}
 
 
 # ---------- страницы ----------
@@ -342,6 +534,11 @@ async def healthz():
 @app.get("/")
 async def index():
     return FileResponse(os.path.join(WEB_DIR, "index.html"))
+
+
+@app.get("/admin")
+async def admin_page():
+    return FileResponse(os.path.join(WEB_DIR, "admin.html"))
 
 
 @app.get("/{code}")

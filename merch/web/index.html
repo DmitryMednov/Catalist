@@ -12,10 +12,16 @@
 <header>
   <div class="head-inner">
     <div class="brand">
-      <img src="/static/logo.png" alt="Catalist">
-      <span class="sub">Serial numbers</span>
+      <div class="brand-left">
+        <img src="/static/logo.png" alt="Catalist">
+        <span class="sub">Serial numbers</span>
+      </div>
+      <nav class="head-links">
+        <a href="/my">Collection</a>
+        <a href="/admin">Admin</a>
+      </nav>
     </div>
-    <nav>
+    <nav class="tabs">
       <button id="tab-check" data-tab="check"><span class="t">Check</span><span class="s">verify</span></button>
       <button id="tab-generate" data-tab="generate"><span class="t">Serial</span><span class="s">issuing</span></button>
       <button id="tab-journal" data-tab="journal"><span class="t">Register</span><span class="s">issued</span></button>

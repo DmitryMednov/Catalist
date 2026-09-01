@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import os
 import re
 from datetime import datetime, timezone
@@ -38,6 +39,11 @@ from .security import RateLimiter, Roles, client_ip
 from .storage import ROLES as USER_ROLES
 from .storage import Storage
 from .version import APP_VERSION
+
+# Прикладные логи (отправка почты и т.п.) должны попадать в docker logs:
+# uvicorn настраивает только свои логгеры, поэтому корневой — сами.
+logging.basicConfig(level=os.environ.get("MERCH_LOG_LEVEL", "INFO"),
+                    format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 DATA_DIR = os.environ.get("MERCH_DATA_DIR", "data")
 PUBLIC_URL = (os.environ.get("MERCH_PUBLIC_URL") or "https://code.catalist.world").rstrip("/")

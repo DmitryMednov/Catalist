@@ -19,7 +19,9 @@ services:
       - MERCH_PRODUCTION_PIN=${MERCH_PRODUCTION_PIN}
       - MERCH_ADMIN_PIN=${MERCH_ADMIN_PIN}
       - MERCH_SERIAL_KEY=${MERCH_SERIAL_KEY:-}
-      - MERCH_PUBLIC_URL=https://${MERCH_DOMAIN:-code.catalist.world}
+      # публичный адрес для ссылок в письмах и QR; до настройки DNS можно
+      # временно переопределить в .env: MERCH_PUBLIC_URL=http://IP:8080
+      - MERCH_PUBLIC_URL=${MERCH_PUBLIC_URL:-https://${MERCH_DOMAIN:-code.catalist.world}}
       - MERCH_BEHIND_PROXY=1
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}

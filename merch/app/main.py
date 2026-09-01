@@ -42,7 +42,10 @@ from .version import APP_VERSION
 DATA_DIR = os.environ.get("MERCH_DATA_DIR", "data")
 PUBLIC_URL = (os.environ.get("MERCH_PUBLIC_URL") or "https://code.catalist.world").rstrip("/")
 MAIN_SITE = os.environ.get("MERCH_MAIN_SITE", "https://catalist.world")
-SECURE_COOKIES = os.environ.get("MERCH_BEHIND_PROXY") == "1"
+# Secure-флаг cookie следует за схемой публичного адреса: на временном
+# http-доступе (до DNS) браузер не отбросит cookie кабинета и сессий,
+# с переходом на https флаг включится сам.
+SECURE_COOKIES = PUBLIC_URL.lower().startswith("https")
 
 VERIFY_PER_MIN = int(os.environ.get("MERCH_VERIFY_PER_MIN", "30"))
 REGISTER_PER_MIN = int(os.environ.get("MERCH_REGISTER_PER_MIN", "10"))

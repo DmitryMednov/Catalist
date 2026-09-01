@@ -259,14 +259,15 @@ docker compose cp merch:/app/data/serial-key.backup.json ~/backups/
 
 Хранить **отдельно** от бэкапа базы: потеря ключа делает нечитаемой всю выпущенную маркировку; утечка ключа вместе с базой даёт возможность подделки номеров.
 
-**База данных:**
+**База данных** — скрипт `deploy/backup.sh`: делает консистентный снимок работающей базы (VACUUM INTO), складывает в `~/catalist-backups/merch-ДАТА.db` и удаляет копии старше 14 дней (настраивается `CATALIST_BACKUP_KEEP_DAYS`).
 
 ```bash
-# корректная горячая копия (SQLite в режиме WAL; CLI sqlite3 в образ не входит,
-# поэтому снимок делается средствами Python)
-docker compose exec merch python -c "import sqlite3; sqlite3.connect('/app/data/merch.db').execute(\"VACUUM INTO '/app/data/merch-backup.db'\")"
-docker compose cp merch:/app/data/merch-backup.db ~/backups/merch-$(date +%F).db
+./deploy/backup.sh        # разовый бэкап
+# ежедневный бэкап в 03:20 — установка cron одной командой:
+(crontab -l 2>/dev/null; echo "20 3 * * * $HOME/Catalist/deploy/backup.sh >> $HOME/catalist-backups/backup.log 2>&1") | crontab -
 ```
+
+Периодически скачивайте папку бэкапов с сервера (`scp -r root@СЕРВЕР:~/catalist-backups ~/`) — копия на том же диске не спасает от гибели самого сервера.
 
 **Обновление:** `git pull` → `docker compose build` → `docker compose up -d` — миграции схемы применяются сами.
 

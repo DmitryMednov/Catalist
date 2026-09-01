@@ -1,9 +1,13 @@
-"""Отправка писем покупателям (SMTP, стандартная библиотека).
+"""Отправка писем покупателям: HTTPS-API Brevo или классический SMTP.
 
-Настройка через окружение (см. .env.example): MERCH_SMTP_HOST, MERCH_SMTP_PORT,
-MERCH_SMTP_USER, MERCH_SMTP_PASSWORD, MERCH_SMTP_FROM, MERCH_SMTP_SECURITY
-(starttls | ssl | none). Пока SMTP не настроен, письма не отправляются —
-остальной функционал (скидка, кабинет) работает без них.
+Два транспорта (см. .env.example):
+  * MERCH_BREVO_API_KEY — отправка через api.brevo.com по HTTPS (порт 443).
+    Рекомендуется на DigitalOcean и подобных хостингах: исходящие
+    SMTP-порты (25/465/587) там часто заблокированы на уровне сети.
+    Отправитель — MERCH_SMTP_FROM (адрес должен быть подтверждён в Brevo).
+  * MERCH_SMTP_HOST/PORT/USER/PASSWORD/FROM/SECURITY — обычный SMTP.
+Если задан API-ключ, используется он. Пока не настроено ни то ни другое,
+письма не отправляются — остальной функционал (скидка, кабинет) работает.
 
 Отправка идёт в фоновом потоке: регистрация фигурки не ждёт SMTP-сервер.
 Результат отправки фиксируется колбэком (флаг email_sent у скидки) и в логе.
@@ -18,6 +22,8 @@ import threading
 from email.message import EmailMessage
 from email.utils import formataddr
 
+import httpx
+
 log = logging.getLogger("merch.mailer")
 
 
@@ -29,10 +35,11 @@ class Mailer:
         self.password = os.environ.get("MERCH_SMTP_PASSWORD") or ""
         self.sender = (os.environ.get("MERCH_SMTP_FROM") or self.user).strip()
         self.security = (os.environ.get("MERCH_SMTP_SECURITY") or "starttls").strip().lower()
+        self.brevo_key = (os.environ.get("MERCH_BREVO_API_KEY") or "").strip()
 
     @property
     def enabled(self) -> bool:
-        return bool(self.host and self.sender)
+        return bool(self.sender and (self.brevo_key or self.host))
 
     # ---------- транспорт ----------
 
@@ -51,15 +58,34 @@ class Mailer:
         finally:
             server.quit()
 
+    def _deliver_api(self, msg: EmailMessage) -> None:
+        """Доставка через HTTPS-API Brevo — обходит блокировку SMTP-портов."""
+        text = msg.get_body(("plain",))
+        html = msg.get_body(("html",))
+        payload = {
+            "sender": {"name": "Catalist", "email": self.sender},
+            "to": [{"email": str(msg["To"])}],
+            "subject": str(msg["Subject"]),
+            "textContent": text.get_content() if text else "",
+        }
+        if html is not None:
+            payload["htmlContent"] = html.get_content()
+        r = httpx.post("https://api.brevo.com/v3/smtp/email", json=payload,
+                       headers={"api-key": self.brevo_key, "accept": "application/json"},
+                       timeout=20)
+        if r.status_code not in (200, 201, 202):
+            raise RuntimeError(f"Brevo API {r.status_code}: {r.text[:300]}")
+
     def send_async(self, msg: EmailMessage, on_sent=None) -> bool:
         """Ставит письмо в фоновую отправку; False — SMTP не настроен."""
         if not self.enabled:
-            log.info("SMTP is not configured; skipping email to %s", msg["To"])
+            log.info("mail is not configured; skipping email to %s", msg["To"])
             return False
+        deliver = self._deliver_api if self.brevo_key else self._deliver
 
         def run():
             try:
-                self._deliver(msg)
+                deliver(msg)
                 log.info("email sent to %s (%s)", msg["To"], msg["Subject"])
                 if on_sent:
                     on_sent()

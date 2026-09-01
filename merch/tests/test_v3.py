@@ -188,3 +188,44 @@ def test_my_page_served_and_deep_link_reserved():
     assert pub.get("/my").status_code == 200
     from app.version import APP_VERSION
     assert pub.get("/api/status").json()["version"] == APP_VERSION
+
+
+def test_mailer_prefers_brevo_api_when_key_set():
+    calls, evt = [], threading.Event()
+    saved = (mailer.brevo_key, mailer.host, mailer.sender, mailer._deliver_api)
+    mailer.brevo_key, mailer.host, mailer.sender = "xkeysib-test", "", "noreply@test"
+    mailer._deliver_api = lambda msg: (calls.append(msg), evt.set())
+    try:
+        ok = mailer.send_async(mailer.signin_email(to="a@b.co", cabinet_url="http://x/my?k=1"))
+        assert ok and evt.wait(2)
+        assert str(calls[0]["To"]) == "a@b.co"
+    finally:
+        mailer.brevo_key, mailer.host, mailer.sender, mailer._deliver_api = saved
+
+
+def test_brevo_api_payload_shape():
+    from app import mailer as mailer_mod
+    m = mailer_mod.Mailer()
+    m.brevo_key, m.sender = "k-123", "s@catalist.world"
+    captured = {}
+
+    class _Resp:
+        status_code = 201
+        text = ""
+
+    def fake_post(url, json=None, headers=None, timeout=None):
+        captured.update(url=url, json=json, headers=headers)
+        return _Resp()
+
+    saved_post = mailer_mod.httpx.post
+    mailer_mod.httpx.post = fake_post
+    try:
+        m._deliver_api(m.signin_email(to="buyer@x.com", cabinet_url="http://x/my?k=t"))
+    finally:
+        mailer_mod.httpx.post = saved_post
+    assert captured["url"].startswith("https://api.brevo.com/")
+    assert captured["headers"]["api-key"] == "k-123"
+    j = captured["json"]
+    assert j["sender"] == {"name": "Catalist", "email": "s@catalist.world"}
+    assert j["to"] == [{"email": "buyer@x.com"}]
+    assert "http://x/my?k=t" in j["textContent"] and "http://x/my?k=t" in j["htmlContent"]

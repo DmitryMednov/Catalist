@@ -44,6 +44,15 @@ def test_pages_split_into_three_links():
     assert c.get("/cert").status_code == 404
 
 
+def test_ui_assets_ask_browser_to_revalidate():
+    c = _client()
+    assert c.get("/").headers["cache-control"] == "no-cache"
+    assert c.get("/static/menu.js").headers["cache-control"] == "no-cache"
+    assert c.get("/static/style.css").headers["cache-control"] == "no-cache"
+    # редко меняющиеся файлы (шрифты, фото) заголовком не трогаем
+    assert "cache-control" not in c.get("/static/products/guardian.jpg").headers
+
+
 def test_catalog_seed_matches_launch_lineup():
     cat = {t["name"]: t for t in SEED_CATALOG["types"]}
     colors = [c["name"] for c in cat["Balloon Cat"]["colors"]]

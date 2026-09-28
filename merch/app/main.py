@@ -80,6 +80,19 @@ WEB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
 
 
+@app.middleware("http")
+async def _revalidate_ui_assets(request: Request, call_next):
+    """HTML, JS и CSS — всегда с ревалидацией (ETag остаётся, ответ 304 дёшев):
+    после деплоя браузеры сразу подтягивают свежие скрипты, а не кэш недельной
+    давности. Шрифты и фотографии не трогаем — они меняются редко."""
+    resp = await call_next(request)
+    path = request.url.path
+    if (path.startswith("/static/") and path.endswith((".js", ".css"))) \
+            or resp.headers.get("content-type", "").startswith("text/html"):
+        resp.headers["Cache-Control"] = "no-cache"
+    return resp
+
+
 def _err(status: int, message: str, **extra) -> JSONResponse:
     return JSONResponse({"ok": False, "error": message, **extra}, status_code=status)
 

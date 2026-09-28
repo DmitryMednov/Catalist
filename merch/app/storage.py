@@ -176,6 +176,9 @@ class Storage:
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("PRAGMA foreign_keys=ON")
+        # серверный CLI (app.seed_batch) пишет в ту же базу параллельно
+        # с работающим сервисом — ждём снятия блокировки, а не падаем
+        self._db.execute("PRAGMA busy_timeout=10000")
         self._migrate()
         self._provision(serial_key_override)
 
@@ -363,6 +366,19 @@ class Storage:
         with self._lock, self._db:
             cur = self._db.execute("DELETE FROM ledger")
             return cur.rowcount
+
+    def reset_business_data(self) -> dict:
+        """Полная очистка тестовых данных перед боевым запуском: журнал,
+        скидки, кабинеты покупателей и лог проверок — одной транзакцией.
+        Пользователи, сессии и audit_log сохраняются (история действий)."""
+        with self._lock, self._db:
+            counts = {
+                "ledger": self._db.execute("DELETE FROM ledger").rowcount,
+                "discounts": self._db.execute("DELETE FROM discounts").rowcount,
+                "buyers": self._db.execute("DELETE FROM buyers").rowcount,
+                "verifyLog": self._db.execute("DELETE FROM verify_log").rowcount,
+            }
+            return counts
 
     def bump_checks(self, code: str) -> int | None:
         """None — запись успели удалить между поиском и инкрементом."""

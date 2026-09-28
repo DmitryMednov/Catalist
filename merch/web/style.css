@@ -292,3 +292,146 @@ footer.site-foot { background: var(--ink); color: #fff; margin-top: 64px; }
   .plate div { font-size: 30px; border-radius: 14px; }
   .foot-mark { font-size: 28px; }
 }
+
+/* ---------- вкладки-ссылки (капсула шапки может вести на другие страницы) ---------- */
+nav.tabs a {
+  flex: 1; padding: 10px 6px; border-radius: 999px; text-align: center;
+  text-decoration: none; color: var(--steel);
+  transition: background .18s ease, color .18s ease;
+}
+nav.tabs a:hover { background: rgba(255, 255, 255, .55); color: var(--ink); }
+nav.tabs a .t { font-size: 13px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 600; display: block; }
+nav.tabs a .s { font-size: 10px; letter-spacing: .5px; margin-top: 2px; opacity: .75; display: block; }
+
+/* ---------- журнал: действия в строке (сертификат, удаление) ---------- */
+td .cert-open {
+  border: 1.5px solid var(--ink); background: transparent; color: var(--ink);
+  font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+  text-transform: uppercase; padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  margin-top: 6px;
+}
+td .cert-open:hover { background: var(--ink); color: #fff; }
+td.cell-actions { white-space: nowrap; }
+
+/* ---------- сертификат подлинности: палитра бумажного макета ----------
+   Цвета и размеры — из прототипа заказчика (hallmarksuite.tsx), а не из
+   палитры сайта: сертификат печатается на бумаге и живёт своей гаммой. */
+.cert-overlay {
+  position: fixed; inset: 0; z-index: 6;
+  background: rgba(20, 18, 14, .78);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  overflow-y: auto; padding: 18px 14px 46px;
+}
+.cert-box { max-width: 588px; margin: 0 auto; }
+.cert-viewport { overflow: hidden; margin: 0 auto; }
+.cert-overlay .cert-do-print { background: #fff; border-color: #fff; color: var(--ink); }
+.cert-overlay .btn.ghost { color: var(--page); border-color: rgba(242, 224, 190, .55); }
+.cert-overlay .btn.ghost:hover { border-color: var(--page); }
+.cert-note { text-align: center; font-size: 12px; letter-spacing: .4px; color: rgba(242, 224, 190, .65); margin-top: 12px; }
+
+.cert-sheet {
+  --c-ink: #1F1B14; --c-brass: #A8802B; --c-steel: #6B6252; --c-line: #D3C7A9;
+  --c-plate: #231F18; --c-plate-edge: #4A4132; --c-engrave: #E8DFC8;
+  background: #fff; color: var(--c-ink); box-sizing: border-box;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  text-align: center;
+}
+.cert-sheet * { box-sizing: border-box; }
+.cert-sheet .cert-logo { display: block; margin: 0 auto; }
+.cert-sheet .cert-eyebrow { text-transform: uppercase; color: var(--c-steel); }
+.cert-sheet .cert-title { font-weight: 700; }
+.cert-sheet .cert-product { font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.cert-sheet .cert-seq { font-weight: 700; color: var(--c-brass); white-space: nowrap; }
+.cert-sheet .cert-seq .of { color: var(--c-ink); }
+.cert-sheet .cert-caption { color: var(--c-steel); }
+.cert-sheet .cert-photo img { max-width: 100%; max-height: 100%; display: block; }
+.cert-sheet .cert-nophoto { font-size: 8px; letter-spacing: 1px; text-transform: uppercase; color: var(--c-steel); }
+.cert-sheet .cert-qr svg { width: 100%; height: auto; display: block; }
+.cert-sheet .cert-signs { display: flex; justify-content: center; align-items: flex-end; }
+.cert-plate { display: flex; gap: 4px; justify-content: center; }
+.cert-plate .cp-cell {
+  flex: 1 1 0; min-width: 0; aspect-ratio: .8; max-width: 34px;
+  background: var(--c-plate); border: 1px solid var(--c-plate-edge); border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--c-engrave); font-size: 17px; font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .09);
+}
+.cert-plate .cp-cell.big { max-width: 50px; font-size: 24px; }
+
+/* бирка A7/A8: печатается на A4 в натуральную величину, пунктир — линия реза */
+.cert-sheet.tag { padding: 7px; outline: 1px dashed var(--c-line); }
+.cert-sheet.tag .cert-frame { border: 2px double var(--c-brass); padding: 8px; }
+.cert-sheet.tag .cert-logo { height: 18px; margin-bottom: 3px; }
+.cert-sheet.tag .cert-eyebrow { font-size: 5.5px; letter-spacing: 1.8px; margin-top: 3px; }
+.cert-sheet.tag .cert-title { font-size: 8px; margin-top: 2px; }
+.cert-sheet.tag .cert-rule { width: 30px; height: 1px; background: var(--c-brass); margin: 5px auto 6px; }
+.cert-sheet.tag .cert-product { font-size: 11px; }
+.cert-sheet.tag .cert-seq { font-size: 15px; margin-top: 5px; }
+.cert-sheet.tag .cert-seq .of { font-size: 11px; }
+.cert-sheet.tag .cert-plate { margin-top: 6px; }
+.cert-sheet.tag .cert-media { display: flex; gap: 7px; margin-top: 7px; align-items: stretch; justify-content: center; }
+.cert-sheet.tag .cert-photo { flex: 1; height: 74px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.cert-sheet.tag .cert-qr { flex: 1; display: flex; align-items: center; justify-content: center; }
+.cert-sheet.tag .cert-qr svg { width: 68px; }
+.cert-sheet.tag .cert-caption { font-size: 5.5px; line-height: 1.5; margin-top: 5px; }
+.cert-sheet.tag .cert-signs { gap: 14px; margin-top: 4px; }
+.cert-sheet.tag .sig1 { height: 24px; }
+.cert-sheet.tag .sig2 { height: 16px; }
+
+/* A5 (medium) и A3/A4 (large): полноформатный лист с двойной рамкой */
+.cert-sheet.medium, .cert-sheet.large { padding: 26px; }
+.cert-sheet.large { padding: 34px; }
+.cert-sheet .cert-outer { border: 3px double var(--c-brass); padding: 3px; }
+.cert-sheet.medium .cert-frame, .cert-sheet.large .cert-frame {
+  border: 1px solid var(--c-brass); position: relative; padding: 26px;
+}
+.cert-sheet.large .cert-frame { padding: 34px; }
+.cert-sheet .tick { position: absolute; width: 12px; height: 12px; }
+.cert-sheet.large .tick { width: 16px; height: 16px; }
+.cert-sheet .tick.tl { top: 6px; left: 6px; border-top: 2px solid var(--c-brass); border-left: 2px solid var(--c-brass); }
+.cert-sheet .tick.tr { top: 6px; right: 6px; border-top: 2px solid var(--c-brass); border-right: 2px solid var(--c-brass); }
+.cert-sheet .tick.bl { bottom: 6px; left: 6px; border-bottom: 2px solid var(--c-brass); border-left: 2px solid var(--c-brass); }
+.cert-sheet .tick.br { bottom: 6px; right: 6px; border-bottom: 2px solid var(--c-brass); border-right: 2px solid var(--c-brass); }
+.cert-sheet.medium .cert-logo { height: 36px; }
+.cert-sheet.large .cert-logo { height: 46px; }
+.cert-sheet.medium .cert-eyebrow, .cert-sheet.large .cert-eyebrow {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-size: 9px; letter-spacing: 2.4px; margin-top: 9px;
+}
+.cert-sheet.large .cert-eyebrow { font-size: 10px; margin-top: 12px; }
+.cert-sheet .cert-eyebrow .line { width: 40px; height: 1px; background: var(--c-brass); }
+.cert-sheet.large .cert-eyebrow .line { width: 60px; }
+.cert-sheet.medium .cert-title { font-size: 19px; letter-spacing: .4px; margin-top: 9px; }
+.cert-sheet.large .cert-title { font-size: 25px; letter-spacing: 1px; margin-top: 12px; }
+.cert-sheet.medium .cert-photo, .cert-sheet.large .cert-photo {
+  width: 138px; height: 207px; margin: 18px auto 0;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.cert-sheet.large .cert-photo { width: 168px; height: 252px; margin-top: 24px; }
+.cert-sheet.medium .cert-product { font-size: 21px; margin-top: 18px; }
+.cert-sheet.large .cert-product { font-size: 26px; margin-top: 24px; }
+.cert-sheet.medium .cert-seq { font-size: 29px; margin-top: 8px; }
+.cert-sheet.large .cert-seq { font-size: 36px; margin-top: 12px; }
+.cert-sheet.medium .cert-seq .of { font-size: 20px; }
+.cert-sheet.large .cert-seq .of { font-size: 25px; }
+.cert-sheet .cert-label {
+  font-size: 9px; letter-spacing: 1.8px; text-transform: uppercase;
+  color: var(--c-steel); margin: 18px 0 7px;
+}
+.cert-sheet.large .cert-label { font-size: 10px; margin: 24px 0 10px; }
+.cert-sheet.medium .cert-plate { max-width: 300px; margin-left: auto; margin-right: auto; }
+.cert-sheet.large .cert-plate { max-width: 380px; margin-left: auto; margin-right: auto; }
+.cert-sheet.medium .cert-media, .cert-sheet.large .cert-media {
+  display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 18px;
+}
+.cert-sheet.large .cert-media { gap: 20px; margin-top: 24px; }
+.cert-sheet.medium .cert-qr { width: 76px; flex-shrink: 0; }
+.cert-sheet.large .cert-qr { width: 96px; flex-shrink: 0; }
+.cert-sheet.medium .cert-caption { font-size: 9px; line-height: 1.7; max-width: 180px; text-align: left; }
+.cert-sheet.large .cert-caption { font-size: 10px; max-width: 240px; text-align: left; }
+.cert-sheet.medium .cert-signs { gap: 28px; margin-top: 16px; }
+.cert-sheet.large .cert-signs { gap: 44px; margin-top: 22px; }
+.cert-sheet.medium .sig1 { height: 40px; }
+.cert-sheet.medium .sig2 { height: 26px; }
+.cert-sheet.large .sig1 { height: 54px; }
+.cert-sheet.large .sig2 { height: 34px; }

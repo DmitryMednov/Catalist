@@ -20,6 +20,7 @@ async function api(path, opts = {}) {
   try { return await res.json(); }
   catch { return { ok: false, error: `server error (${res.status})` }; }
 }
+window.merchApi = api; // cert.js печатает сертификаты с теми же учётными данными
 
 function setMsg(id, text, kind) {
   const el = $(id);
@@ -356,7 +357,8 @@ async function loadJournal() {
   const head = `<tr><th>Code</th><th>Product</th><th>№</th><th>Month</th><th>Site</th><th>Checks</th><th>Owner</th><th>Issued by</th>${admin ? "<th></th>" : ""}</tr>`;
   const rows = recs.map((rec) => `
     <tr>
-      <td><span class="code">${esc(rec.code)}</span><br><span class="dim">${esc((rec.issuedAt || "").slice(0, 10))}</span></td>
+      <td><span class="code">${esc(rec.code)}</span><br><span class="dim">${esc((rec.issuedAt || "").slice(0, 10))}</span><br>
+        <button class="cert-open" data-code="${esc(rec.code)}" title="Print the certificate">Certificate</button></td>
       <td>${esc(rec.product)}<br><span class="dim"><span class="swatch" style="background:${esc(rec.hex || "#888")}"></span>${esc(rec.colorName)}</span></td>
       <td>${String(rec.seq ?? 0).padStart(3, "0")}${rec.edition ? `<br><span class="dim">/ ${esc(rec.edition)}</span>` : ""}</td>
       <td>${esc(rec.monthLabel || (rec.month != null ? monthLabel(rec.month) : "—"))}</td>
@@ -368,6 +370,9 @@ async function loadJournal() {
     </tr>`).join("");
   $("journal-table").innerHTML = head +
     (rows || `<tr><td colspan="${admin ? 9 : 8}"><span class="dim">nothing recorded yet</span></td></tr>`);
+  $("journal-table").querySelectorAll(".cert-open").forEach((b) => {
+    b.onclick = () => openCertificate(b.dataset.code);
+  });
   if (admin) {
     $("journal-table").querySelectorAll(".del").forEach((b) => {
       b.onclick = async () => {

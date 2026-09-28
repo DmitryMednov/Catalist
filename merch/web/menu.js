@@ -6,6 +6,7 @@
   const LINKS = [
     ["Check <b>authenticity</b>", "/"],
     ["My <b>collection</b>", "/my"],
+    ["Factory <b>issuing</b>", "/factory"],
     ["Admin <b>dashboard</b>", "/admin"],
     ["catalist<b>.world</b>", "https://catalist.world"],
   ];

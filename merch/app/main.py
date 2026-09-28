@@ -451,6 +451,37 @@ async def clear_ledger(request: Request, confirm: str = ""):
     return {"ok": True, "deleted": deleted}
 
 
+# ---------- сертификат ----------
+
+@app.get("/api/cert/{code}")
+async def certificate_data(request: Request, code: str):
+    """Данные для печати сертификата подлинности — всё, что нужно странице
+    /factory, одним ответом: запись журнала, формат листа и QR (inline SVG).
+    Роли — как у журнала: сертификат печатают те, кто видит выпуск."""
+    p, denied = _guard(request, "production", "ledger")
+    if denied:
+        return denied
+    rec = store.find_by_code(serials.normalize(code))
+    if not rec:
+        return _err(404, "not found")
+    verify_url = f"{PUBLIC_URL}/{rec['code']}"
+    buff = io.BytesIO()
+    # omitsize: вместо width/height у SVG появляется viewBox — QR масштабируется
+    # CSS-ом до размера контейнера на сертификате без обрезки
+    segno.make(verify_url, error="m").save(buff, kind="svg", omitsize=True, dark="#14120E", light=None)
+    return {
+        "ok": True, "code": rec["code"],
+        "product": rec["product"], "color": rec["colorName"], "hex": rec["hex"],
+        "img": rec["img"], "seq": rec["seq"], "edition": rec["edition"],
+        "sheet": rec["sheet"] or "a5",
+        "month": rec["month"], "monthLabel": serials.month_label(rec["month"]),
+        "site": rec["site"], "registered": rec["owner"] is not None,
+        "verifyUrl": verify_url,
+        "qrSvg": buff.getvalue().decode("utf-8"),
+        "certificate": store.certificate(),
+    }
+
+
 # ---------- администрирование ----------
 
 @app.get("/api/admin/stats")
@@ -731,6 +762,13 @@ async def admin_page():
     return FileResponse(os.path.join(WEB_DIR, "admin.html"))
 
 
+@app.get("/factory")
+async def factory_page():
+    """Рабочее место производства: выпуск номеров, журнал, печать сертификатов.
+    Доступ к данным закрыт ролями API; сама страница — экран входа."""
+    return FileResponse(os.path.join(WEB_DIR, "factory.html"))
+
+
 @app.get("/my")
 async def my_page(request: Request, k: str = ""):
     """Личный кабинет. Ссылка из письма несёт ?k=<токен> — ставим cookie
@@ -759,7 +797,8 @@ async def deep_link(code: str):
     Любой путь вида /XXXXXXXX открывает интерфейс с автопроверкой кода;
     сам код разбирает клиентский скрипт из location.pathname.
     """
-    if code.lower() in {"api", "static", "healthz", "admin", "auth", "my", "d", "favicon.ico"}:
+    if code.lower() in {"api", "static", "healthz", "admin", "auth", "my", "d",
+                        "factory", "cert", "favicon.ico"}:
         return _err(404, "not found")
     if not re.fullmatch(r"[0-9A-Za-z-]{1,32}", code):
         return _err(404, "not found")

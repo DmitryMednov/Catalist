@@ -9,10 +9,11 @@
     заказчика, сентябрь 2026), фотография пока от белой фигурки прототипа;
   * форматы сертификатов — по требованию заказчика: Balloon Cat A5,
     Guardian of Cyprus A7, Guardian of Cyprus S A8;
-  * тиражи (edition, знаменатель «№ … / …» на сертификате) — фактические
-    объёмы партии запуска: Balloon Cat 25, серия Guardian 20 (большая и
-    маленькая фигурки — один тираж со сквозной нумерацией, см.
-    app/seed_batch.py). Меняются в дашборде: Catalogue → Edition.
+  * тиражи (edition, знаменатель «№ … / …» на сертификате), по решению
+    заказчика: Balloon Cat 25 (пять цветов, сквозная нумерация № 001–025),
+    Guardian of Cyprus и Guardian of Cyprus S по 100 каждая (первая партия
+    выпускает № 001–010 каждой, см. app/seed_batch.py).
+    Меняются в дашборде: Catalogue → Edition.
 
 Каталог редактируется администратором через API; структура записи:
   types[]:  name, on, sheet (a5|a7|a8), site (индекс площадки или None),
@@ -38,14 +39,14 @@ SEED_CATALOG = {
             ],
         },
         {
-            "name": "Guardian of Cyprus", "on": True, "sheet": "a7", "site": 1, "edition": 20,
+            "name": "Guardian of Cyprus", "on": True, "sheet": "a7", "site": 1, "edition": 100,
             "colors": [
                 {"name": "Grey", "hex": "#7C7A74", "on": True,
                  "img": "/static/products/guardian.jpg"},
             ],
         },
         {
-            "name": "Guardian of Cyprus S", "on": True, "sheet": "a8", "site": 1, "edition": 20,
+            "name": "Guardian of Cyprus S", "on": True, "sheet": "a8", "site": 1, "edition": 100,
             "colors": [
                 {"name": "Grey", "hex": "#7C7A74", "on": True,
                  "img": "/static/products/guardian-s.jpg"},

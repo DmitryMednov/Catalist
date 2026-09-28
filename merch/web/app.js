@@ -88,10 +88,8 @@ async function runCheck() {
     regBlock = `
       <div class="card" id="reg-card">
         <div class="status-sub"><b>Register this piece.</b> Registration is possible once per number and ties it to its owner.</div>
-        <div class="row">
-          <div><label>First name</label><input id="reg-first" autocomplete="given-name"></div>
-          <div><label>Last name</label><input id="reg-last" autocomplete="family-name"></div>
-        </div>
+        <label>First name</label><input id="reg-first" autocomplete="given-name">
+        <label>Last name</label><input id="reg-last" autocomplete="family-name">
         <label>Date of birth</label><input id="reg-dob" type="date">
         <label>Email</label><input id="reg-email" type="email" autocomplete="email" placeholder="you@example.com">
         ${GOOGLE_AUTH ? '<button class="btn ghost" id="reg-google">Fill from Google</button>' : ""}

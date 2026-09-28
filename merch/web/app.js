@@ -25,6 +25,10 @@ async function resolveSession() {
     const authed = AUTH && AUTH.kind === "user";
     box.classList.toggle("hidden", !authed);
     if (authed) $("foot-who").textContent = `${AUTH.email} (${AUTH.role})`;
+    // служебные ссылки — только тем ролям, которым эти разделы открыты
+    const role = authed ? AUTH.role : null;
+    $("foot-factory").classList.toggle("hidden", !["production", "ledger", "admin"].includes(role));
+    $("foot-admin").classList.toggle("hidden", !["admin", "config", "ledger"].includes(role));
   }
 }
 const footLogout = $("foot-logout");

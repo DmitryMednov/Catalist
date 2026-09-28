@@ -53,6 +53,10 @@ def test_catalog_seed_matches_launch_lineup():
     assert cat["Balloon Cat"]["sheet"] == "a5"
     assert cat["Guardian of Cyprus"]["sheet"] == "a7"
     assert cat["Guardian of Cyprus S"]["sheet"] == "a8"
+    # тиражи — фактические объёмы запуска; серия Guardian — общий тираж 20
+    assert cat["Balloon Cat"]["edition"] == 25
+    assert cat["Guardian of Cyprus"]["edition"] == 20
+    assert cat["Guardian of Cyprus S"]["edition"] == 20
     # у каждого цвета есть фотография, и файл действительно лежит в web/
     for t in SEED_CATALOG["types"]:
         for col in t["colors"]:
@@ -80,7 +84,7 @@ def test_cert_api_payload_and_roles():
     assert r.status_code == 200, r.text
     d = r.json()
     assert d["product"] == "Guardian of Cyprus" and d["sheet"] == "a7"
-    assert d["seq"] == 902 and d["edition"] == 500
+    assert d["seq"] == 902 and d["edition"] == 20
     assert d["img"] == "/static/products/guardian.jpg"
     assert d["verifyUrl"] == f"http://testserver/{code}"
     assert d["qrSvg"].lstrip().startswith("<?xml") or d["qrSvg"].lstrip().startswith("<svg")
@@ -131,8 +135,10 @@ def test_seed_batch_issues_launch_lineup(tmp_path, monkeypatch, capsys):
     recs = s.all_records()
     assert len(recs) == 45
     by_product = {}
+    seqs = {}
     for r in recs:
         by_product.setdefault((r["product"], r["colorName"]), []).append(r)
+        seqs.setdefault(r["product"], set()).add(r["seq"])
         # каждый код обязан проверяться тем же ключом
         dec = serials.decode_serial(r["code"], s.key)
         assert dec.ok and serials.slot_of(dec.fields) == r["slot"]
@@ -141,8 +147,15 @@ def test_seed_batch_issues_launch_lineup(tmp_path, monkeypatch, capsys):
     assert len(by_product[("Guardian of Cyprus", "Grey")]) == 10
     assert len(by_product[("Guardian of Cyprus S", "Grey")]) == 10
     assert all(len(v) == 5 for (p, _), v in by_product.items() if p == "Balloon Cat")
+    # сквозная нумерация: у кота № 1–25 без повторов по всем цветам,
+    # серия Guardian — общий тираж 20: большой 1–10, маленький 11–20
+    assert seqs["Balloon Cat"] == set(range(1, 26))
+    assert seqs["Guardian of Cyprus"] == set(range(1, 11))
+    assert seqs["Guardian of Cyprus S"] == set(range(11, 21))
     guardian = by_product[("Guardian of Cyprus", "Grey")][0]
     assert guardian["site"] == "Cyprus" and guardian["sheet"] == "a7"
+    assert guardian["edition"] == 20
+    assert by_product[("Balloon Cat", "Gold")][0]["edition"] == 25
 
     listing = (tmp_path / "issued-codes.txt").read_text(encoding="utf-8")
     assert listing.count("№") == 45

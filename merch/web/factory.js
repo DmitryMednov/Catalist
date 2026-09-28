@@ -56,6 +56,8 @@ function renderSessionFooter() {
   const authed = AUTH && AUTH.kind === "user";
   box.classList.toggle("hidden", !authed);
   if (authed) $("foot-who").textContent = `${AUTH.email} (${AUTH.role})`;
+  $("foot-admin").classList.toggle("hidden",
+    !(authed && ["admin", "config", "ledger"].includes(AUTH.role)));
 }
 function roleAllows(which) {
   return ROLE && (ROLE === "admin" || TAB_ROLES[which].includes(ROLE));
@@ -64,6 +66,9 @@ async function enterStaff(which) {
   if (!ROLE) await resolveRole();
   document.querySelectorAll(".google-btn").forEach((b) => b.classList.toggle("hidden", !GOOGLE_AUTH || !!ROLE));
   document.querySelectorAll(".or-sep").forEach((b) => b.classList.toggle("hidden", !GOOGLE_AUTH || !!ROLE));
+  // после входа прячем вкладку, которую роль не открывает (ledger видит только журнал)
+  $("tab-generate").classList.toggle("hidden", !!ROLE && !roleAllows("gen"));
+  $("tab-journal").classList.toggle("hidden", !!ROLE && !roleAllows("journal"));
   const allowed = roleAllows(which);
   const deniedMsg = ROLE && !allowed
     ? (ROLE === "none"
@@ -269,5 +274,6 @@ async function loadJournal() {
 /* ---------------- boot ---------------- */
 (async function boot() {
   await resolveRole();
-  showTab("generate");
+  // ledger выдачу не открывает — такого пользователя встречает журнал
+  showTab(ROLE && !roleAllows("gen") && roleAllows("journal") ? "journal" : "generate");
 })();

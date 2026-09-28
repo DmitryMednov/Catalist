@@ -1,15 +1,24 @@
 /* Бургер-меню разделов: единое для всех страниц модуля.
    Скрипт сам вставляет кнопку в шапку (.brand или .topbar-in) и
-   стеклянный оверлей в body — страницам достаточно подключить файл. */
+   стеклянный оверлей в body — страницам достаточно подключить файл.
+
+   Пункты зависят от роли: гость и покупатель видят только клиентские
+   разделы; Factory и Admin появляются после входа по PIN или Google
+   (доступ к данным всё равно закрыт ролями на API — меню лишь не
+   показывает лишнего). */
 "use strict";
 (function () {
-  const LINKS = [
+  const LINKS_BASE = [
     ["Check <b>authenticity</b>", "/"],
     ["My <b>collection</b>", "/my"],
-    ["Factory <b>issuing</b>", "/factory"],
-    ["Admin <b>dashboard</b>", "/admin"],
-    ["catalist<b>.world</b>", "https://catalist.world"],
   ];
+  // какие роли открывают служебные разделы (совпадает с проверками API)
+  const LINKS_STAFF = [
+    ["Factory <b>issuing</b>", "/factory", ["production", "ledger", "admin"]],
+    ["Admin <b>dashboard</b>", "/admin", ["admin", "config", "ledger"]],
+  ];
+  const LINK_SITE = ["catalist<b>.world</b>", "https://catalist.world"];
+
   const host = document.querySelector(".brand") || document.querySelector(".topbar-in");
   if (!host) return;
 
@@ -24,14 +33,33 @@
   const ov = document.createElement("div");
   ov.className = "menu-overlay";
   ov.hidden = true;
-  const here = location.pathname.replace(/\/+$/, "") || "/";
-  ov.innerHTML = '<nav class="menu-panel" aria-label="Catalist sections">'
-    + LINKS.map(([label, href], i) => {
-        const current = href === here ? ' class="current" aria-current="page"' : "";
-        return `<a href="${href}" style="--i:${i}"${current}>${label}</a>`;
-      }).join("")
-    + '<div class="menu-copy">© 2026 Catalist · Special edition</div></nav>';
   document.body.appendChild(ov);
+
+  const here = location.pathname.replace(/\/+$/, "") || "/";
+  function render(role) {
+    const links = LINKS_BASE
+      .concat(LINKS_STAFF.filter(([, , roles]) => role && roles.includes(role)))
+      .concat([LINK_SITE]);
+    ov.innerHTML = '<nav class="menu-panel" aria-label="Catalist sections">'
+      + links.map(([label, href], i) => {
+          const current = href === here ? ' class="current" aria-current="page"' : "";
+          return `<a href="${href}" style="--i:${i}"${current}>${label}</a>`;
+        }).join("")
+      + '<div class="menu-copy">© 2026 Catalist · Special edition</div></nav>';
+  }
+  render(null);
+
+  // роль текущей сессии: cookie Google уходит сама, PIN — из sessionStorage
+  (async function resolveRole() {
+    try {
+      const headers = {};
+      const pin = sessionStorage.getItem("merch_pin");
+      if (pin) headers["X-Pin"] = pin;
+      const r = await fetch("/api/me", { headers });
+      const j = await r.json();
+      if (j && j.auth && j.auth.role) render(j.auth.role);
+    } catch { /* нет сети — остаются клиентские пункты */ }
+  })();
 
   function setOpen(open) {
     ov.hidden = !open;

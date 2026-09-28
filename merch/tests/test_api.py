@@ -81,7 +81,7 @@ def test_verify_full_flow():
     code = _issue(seq=103)
     r = client.post("/api/verify", json={"code": code}).json()
     assert r["ok"] and r["status"] == "issued"
-    assert r["product"] == "Balloon Cat" and r["seq"] == 103 and r["edition"] == 500
+    assert r["product"] == "Balloon Cat" and r["seq"] == 103 and r["edition"] == 25
     assert r["monthLabel"] == "Aug 2026" and r["site"] == "Dubai"
     assert r["checks"] == 1 and not r["registered"]
     r2 = client.post("/api/verify", json={"code": code.lower()}).json()

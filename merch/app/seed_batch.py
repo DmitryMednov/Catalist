@@ -15,6 +15,11 @@
      Guardian of Cyprus и Guardian of Cyprus S — по 10 номеров (Cyprus);
   4) печатает список кодов и сохраняет его в data/issued-codes.txt.
 
+Нумерация сквозная внутри тиража, чтобы каждый «№ … / тираж» существовал
+в одном экземпляре: Balloon Cat — № 001–025 подряд по цветам (тираж 25);
+серия Guardian — один тираж 20: большая фигурка № 001–010,
+маленькая продолжает № 011–020.
+
 Скрипт идемпотентен по слотам: уже занятый номер пропускается с пометкой,
 поэтому повторный запуск без --reset не создаст дублей.
 """
@@ -30,11 +35,14 @@ from . import serials
 from .catalog_seed import SEED_CATALOG
 from .storage import Storage
 
-# Партия запуска: (изделие, [цвета] или None = все включённые, номеров на цвет)
+# Партия запуска: (изделие, [цвета] или None = все включённые,
+#                  номеров на цвет, стартовый №).
+# Внутри изделия цвета нумеруются подряд от стартового №;
+# Guardian S начинает с 11 — продолжение тиража большой фигурки.
 BATCH_PLAN = [
-    ("Balloon Cat", None, 5),
-    ("Guardian of Cyprus", None, 10),
-    ("Guardian of Cyprus S", None, 10),
+    ("Balloon Cat", None, 5, 1),
+    ("Guardian of Cyprus", None, 10, 1),
+    ("Guardian of Cyprus S", None, 10, 11),
 ]
 ISSUED_BY = "seed-batch"
 
@@ -48,7 +56,7 @@ def current_month_index() -> int:
 def build_plan(catalog: dict) -> list[dict]:
     """Разворачивает BATCH_PLAN в конкретные слоты по актуальному каталогу."""
     jobs = []
-    for product_name, color_names, per_color in BATCH_PLAN:
+    for product_name, color_names, per_color, start in BATCH_PLAN:
         ti = next((i for i, t in enumerate(catalog["types"]) if t["name"] == product_name), None)
         if ti is None:
             sys.exit(f"каталог не содержит изделия «{product_name}» — обновите catalog_seed")
@@ -60,20 +68,23 @@ def build_plan(catalog: dict) -> list[dict]:
                   if c.get("on") and (color_names is None or c["name"] in color_names)]
         if not colors:
             sys.exit(f"у изделия «{product_name}» нет включённых цветов для партии")
+        seq_from = start  # сквозная нумерация по цветам изделия
         for j, c in colors:
             jobs.append({
-                "type": ti, "color": j, "place": place, "count": per_color,
+                "type": ti, "color": j, "place": place,
+                "count": per_color, "start": seq_from,
                 "product": t["name"], "colorName": c["name"], "hex": c.get("hex"),
                 "img": c.get("img"), "sheet": t.get("sheet") or "a5",
                 "edition": t.get("edition"), "site": catalog["places"][place]["name"],
             })
+            seq_from += per_color
     return jobs
 
 
 def issue_jobs(store: Storage, jobs: list[dict], month: int) -> tuple[list[dict], list[str]]:
     issued, skipped = [], []
     for job in jobs:
-        for seq in range(1, job["count"] + 1):
+        for seq in range(job["start"], job["start"] + job["count"]):
             fields = serials.Fields(type=job["type"], color=job["color"],
                                     month=month, place=job["place"], seq=seq)
             code = serials.encode_serial(fields, store.key)
@@ -108,9 +119,9 @@ def render_list(issued: list[dict], month: int, public_url: str, fingerprint: st
         g = (e["product"], e["colorName"])
         if g != group:
             group = g
-            lines.append(f"{e['product']} — {e['colorName']} · {e['site']} · edition /{e['edition']}")
-        lines.append(f"  № {e['seq']:03d}   {e['code']}")
-        if e["seq"] == e["count"]:
+            lines.append(f"{e['product']} — {e['colorName']} · {e['site']}")
+        lines.append(f"  № {e['seq']:03d} / {e['edition']}   {e['code']}")
+        if e["seq"] == e["start"] + e["count"] - 1:
             lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -133,7 +144,8 @@ def main() -> None:
     print(f"База: {store.path} · записей сейчас: {store.count_records()}")
     print(f"Месяц партии: {serials.month_label(month)} · всего к выпуску: {total}")
     for j in jobs:
-        print(f"  {j['product']} / {j['colorName']} — № 001…{j['count']:03d} ({j['site']})")
+        last = j["start"] + j["count"] - 1
+        print(f"  {j['product']} / {j['colorName']} — № {j['start']:03d}…{last:03d} из {j['edition']} ({j['site']})")
     if not args.no_reset:
         print("Перед выпуском будут удалены: журнал, скидки, кабинеты, лог проверок.")
     if not args.yes:

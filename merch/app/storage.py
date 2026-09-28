@@ -367,6 +367,26 @@ class Storage:
             cur = self._db.execute("DELETE FROM ledger")
             return cur.rowcount
 
+    def sync_ledger_snapshots(self, catalog: dict) -> int:
+        """Обновляет у существующих записей журнала снимок каталога: тираж,
+        формат листа, фото, цвет, названия. Коды и слоты не меняются никогда,
+        поэтому изменение тиража отражается и на уже выпущенных сертификатах,
+        а список кодов у производителей остаётся действительным."""
+        touched = 0
+        with self._lock, self._db:
+            for ti, t in enumerate(catalog["types"]):
+                cur = self._db.execute(
+                    "UPDATE ledger SET product = ?, sheet = ?, edition = ? WHERE type = ?",
+                    (t["name"], t.get("sheet") or "a5", t.get("edition"), ti))
+                touched += cur.rowcount
+                for j, c in enumerate(t["colors"]):
+                    self._db.execute(
+                        "UPDATE ledger SET color_name = ?, hex = ?, img = ? WHERE type = ? AND color = ?",
+                        (c["name"], c.get("hex"), c.get("img"), ti, j))
+            for pi, p in enumerate(catalog["places"]):
+                self._db.execute("UPDATE ledger SET site = ? WHERE place = ?", (p["name"], pi))
+        return touched
+
     def reset_business_data(self) -> dict:
         """Полная очистка тестовых данных перед боевым запуском: журнал,
         скидки, кабинеты покупателей и лог проверок — одной транзакцией.

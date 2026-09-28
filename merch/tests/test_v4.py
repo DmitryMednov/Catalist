@@ -160,7 +160,7 @@ def test_seed_batch_issues_launch_lineup(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr("sys.argv", ["seed_batch", "--yes"])
     seed_batch.main()
     out = capsys.readouterr().out
-    assert "Выпущено 45 кодов" in out
+    assert "Партия: 45 кодов. Выпущено сейчас: 45" in out
 
     from app.storage import Storage
     s = Storage(str(tmp_path))
@@ -170,20 +170,19 @@ def test_seed_batch_issues_launch_lineup(tmp_path, monkeypatch, capsys):
     seqs = {}
     for r in recs:
         by_product.setdefault((r["product"], r["colorName"]), []).append(r)
-        seqs.setdefault(r["product"], set()).add(r["seq"])
-        # каждый код обязан проверяться тем же ключом
+        seqs.setdefault((r["product"], r["colorName"]), set()).add(r["seq"])
+        # каждый код обязан проверяться тем же ключом; месяц партии закреплён
         dec = serials.decode_serial(r["code"], s.key)
         assert dec.ok and serials.slot_of(dec.fields) == r["slot"]
-        assert r["issuedBy"] == "seed-batch"
+        assert r["issuedBy"] == "seed-batch" and r["month"] == seed_batch.BATCH_MONTH
     assert len(by_product[("Balloon Cat", "Crystal White")]) == 5
     assert len(by_product[("Guardian of Cyprus", "Grey")]) == 10
     assert len(by_product[("Guardian of Cyprus S", "Grey")]) == 10
     assert all(len(v) == 5 for (p, _), v in by_product.items() if p == "Balloon Cat")
-    # сквозная нумерация: у кота № 1–25 без повторов по всем цветам;
-    # у каждой фигурки Guardian свой тираж 100, партия начинает с № 001
-    assert seqs["Balloon Cat"] == set(range(1, 26))
-    assert seqs["Guardian of Cyprus"] == set(range(1, 11))
-    assert seqs["Guardian of Cyprus S"] == set(range(1, 11))
+    # нумерация в каждом цвете своя, как в списке у производителей:
+    # у кота № 001-005 в каждом из пяти цветов, у стражей № 001-010
+    for (p, _), ss in seqs.items():
+        assert ss == set(range(1, 6 if p == "Balloon Cat" else 11))
     guardian = by_product[("Guardian of Cyprus", "Grey")][0]
     assert guardian["site"] == "Cyprus" and guardian["sheet"] == "a7"
     assert guardian["edition"] == 100
@@ -194,10 +193,49 @@ def test_seed_batch_issues_launch_lineup(tmp_path, monkeypatch, capsys):
     for r in recs:
         assert r["code"] in listing
 
-    # повторный запуск с --no-reset не создаёт дублей
-    monkeypatch.setattr("sys.argv", ["seed_batch", "--yes", "--no-reset"])
+
+def test_seed_batch_rerun_keeps_codes_and_syncs_editions(tmp_path, monkeypatch, capsys):
+    """Список у производителей: повторный запуск не трогает коды и владельцев,
+    а тираж на существующих записях подтягивает из каталога."""
+    from app import seed_batch
+    from app.storage import Storage
+    monkeypatch.setenv("MERCH_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("sys.argv", ["seed_batch", "--yes"])
     seed_batch.main()
-    assert len(Storage(str(tmp_path)).all_records()) == 45
+    s = Storage(str(tmp_path))
+    codes_before = {r["code"] for r in s.all_records()}
+    some = sorted(codes_before)[0]
+    assert s.register_owner(some, {"email": "keep@example.com", "firstName": "K",
+                                   "lastName": "Eeper", "dob": "1990-01-01"})
+    # имитируем старую партию: тираж в снимках ещё 500
+    with s._lock, s._db:
+        s._db.execute("UPDATE ledger SET edition = 500")
+    del s
+
+    capsys.readouterr()
+    monkeypatch.setattr("sys.argv", ["seed_batch", "--yes"])
+    seed_batch.main()
+    out = capsys.readouterr().out
+    assert "Выпущено сейчас: 0, уже были и не тронуты: 45" in out
+    assert "ТРЕВОГА" not in out
+    s2 = Storage(str(tmp_path))
+    recs = {r["code"]: r for r in s2.all_records()}
+    assert set(recs) == codes_before                      # коды не изменились
+    assert recs[some]["owner"]["email"] == "keep@example.com"  # владелец на месте
+    editions = {r["product"]: r["edition"] for r in recs.values()}
+    assert editions["Balloon Cat"] == 25                  # тиражи обновились
+    assert editions["Guardian of Cyprus"] == 100
+    assert editions["Guardian of Cyprus S"] == 100
+    # полный список печатается и при нулевом довыпуске
+    listing = (tmp_path / "issued-codes.txt").read_text(encoding="utf-8")
+    assert listing.count("№") == 45
+
+    # --reset-all: единственный способ удалить данные, и только явно
+    monkeypatch.setattr("sys.argv", ["seed_batch", "--yes", "--reset-all"])
+    seed_batch.main()
+    s3 = Storage(str(tmp_path))
+    assert len(s3.all_records()) == 45
+    assert all(r["owner"] is None for r in s3.all_records())
 
 
 def test_seed_batch_dry_run_changes_nothing(tmp_path, monkeypatch, capsys):

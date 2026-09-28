@@ -21,7 +21,7 @@ async function api(path, opts = {}) {
   if (PIN) headers["X-Pin"] = PIN;
   let res;
   try { res = await fetch(path, { ...opts, headers }); }
-  catch { return { ok: false, error: "network error — check the connection" }; }
+  catch { return { ok: false, error: "network error, check the connection" }; }
   try { return await res.json(); }
   catch { return { ok: false, error: `server error (${res.status})` }; }
 }
@@ -72,7 +72,7 @@ async function enterStaff(which) {
   const allowed = roleAllows(which);
   const deniedMsg = ROLE && !allowed
     ? (ROLE === "none"
-        ? "Your account has no role yet — ask the administrator to assign one."
+        ? "Your account has no role yet. Ask the administrator to assign one."
         : `Your role (${ROLE}) does not open this module.`)
     : "";
   if (which === "gen") {
@@ -137,14 +137,14 @@ function fillTypes() {
   const types = CATALOG.types.filter((t) => t.site === undefined || t.site === null || t.site === placeI);
   $("gen-type").innerHTML = types.length
     ? types.map((t) => `<option value="${t.i}">${esc(t.name)}</option>`).join("")
-    : `<option value="">— no products for this site —</option>`;
+    : `<option value="">no products for this site</option>`;
   fillColors();
 }
 function fillColors() {
   const t = CATALOG.types.find((x) => x.i === +$("gen-type").value);
   $("gen-color").innerHTML = t && t.colors.length
     ? t.colors.map((c) => `<option value="${c.j}">${esc(c.name)}</option>`).join("")
-    : `<option value="">— no colours —</option>`;
+    : `<option value="">no colours</option>`;
   refreshSeq();
 }
 async function refreshSeq() {
@@ -212,7 +212,7 @@ $("gen-save").onclick = async () => {
   });
   if (!r.ok) {
     msg.className = "msg err";
-    msg.textContent = r.code ? `already issued as ${r.code} — generate again` : (r.error || "failed");
+    msg.textContent = r.code ? `already issued as ${r.code}, generate again` : (r.error || "failed");
     return;
   }
   SAVED_CODE = r.code;
@@ -246,7 +246,7 @@ async function loadJournal() {
       <td>${esc(rec.monthLabel || monthLabel(rec.month))}</td>
       <td>${esc(rec.site)}</td>
       <td>${rec.checks || 0}</td>
-      <td>${rec.owner ? esc(rec.owner.firstName + " " + rec.owner.lastName) : '<span class="dim">—</span>'}</td>
+      <td>${rec.owner ? esc(rec.owner.firstName + " " + rec.owner.lastName) : '<span class="dim">·</span>'}</td>
       ${admin ? `<td class="cell-actions"><button class="del" data-code="${esc(rec.code)}" title="Delete and free the slot">🗑</button></td>` : ""}
     </tr>`).join("");
   $("journal-table").innerHTML = head + rows;

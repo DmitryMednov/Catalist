@@ -4,9 +4,18 @@
    в реальном размере, пунктир — линия реза. Точный размер на бумаге
    даёт transform: scale(мм/px) в @media print.
 
-   Использование: openCertificate("XXXXXXXX") на странице, где определён
-   window.merchApi (fetch с PIN/сессией). Данные — GET /api/cert/<код>. */
+   Использование: openCertificate("XXXXXXXX"). Запросы идут через
+   window.merchApi, если страница его определила (fetch с PIN/сессией),
+   иначе обычным fetch с cookie: так сертификат открывается и у персонала,
+   и у покупателя в кабинете. Данные: GET /api/cert/<код>.
+
+   Скрипт автономен (IIFE, свой esc): подключается на любую страницу без
+   конфликтов с её помощниками; наружу выходит только openCertificate. */
 "use strict";
+(function () {
+
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g,
+  (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 const CERT_SHEETS = {
   a3: { page: "A3 portrait", margin: "18mm", width: 700, mmWidth: 265, tier: "large" },
@@ -159,7 +168,7 @@ async function openCertificate(code) {
       <div class="cert-viewport"><div id="cert-scale">${certSheetHtml(r, format)}</div></div>
       <button type="button" class="btn cert-do-print">Print certificate</button>
       <button type="button" class="btn ghost cert-close">Back</button>
-      <div class="cert-note">Paper: ${format.toUpperCase()}${sheet.tier === "tag" ? " tag on an A4 sheet — cut along the dashed line" : ""}.</div>
+      <div class="cert-note">Paper: ${format.toUpperCase()}${sheet.tier === "tag" ? " tag, prints on an A4 sheet. Cut along the dashed line" : ""}.</div>
     </div>`;
   document.body.appendChild(ov);
   document.documentElement.classList.add("menu-lock");
@@ -198,3 +207,5 @@ async function openCertificate(code) {
   ov.querySelector(".cert-do-print").onclick = () => window.print();
 }
 window.openCertificate = openCertificate;
+
+})();

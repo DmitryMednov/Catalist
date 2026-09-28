@@ -16,7 +16,7 @@ async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json", ...(PIN ? { "X-Pin": PIN } : {}), ...(opts.headers || {}) };
   let res;
   try { res = await fetch(path, { ...opts, headers }); }
-  catch { return { ok: false, error: "network error — check the connection" }; }
+  catch { return { ok: false, error: "network error, check the connection" }; }
   try { return await res.json(); }
   catch { return { ok: false, error: `server error (${res.status})` }; }
 }
@@ -70,7 +70,7 @@ function renderWho() {
     (ME.picture ? `<img class="avatar" src="${esc(ME.picture)}" alt="">` : "") +
     `<span class="who-name">${esc(name)}</span>` +
     (ME.name && ME.email ? `<span class="who-mail">${esc(ME.email)}</span>` : "") +
-    `<span class="role-badge">${esc(ME.role || "—")}</span>` +
+    `<span class="role-badge">${esc(ME.role || "·")}</span>` +
     `<button class="logout" id="logout-btn">Log out</button>`;
   $("logout-btn").onclick = logout;
   box.classList.remove("hidden");
@@ -138,8 +138,8 @@ async function loadOverview() {
   $("stats-products").innerHTML = `<tr><th>Product</th><th>Issued</th><th>Registered</th></tr>` +
     (rows || `<tr><td colspan="3"><span class="dim">nothing issued yet</span></td></tr>`);
   $("stats-meta").innerHTML =
-    `service version: ${esc(r.version || "—")} · db schema: ${esc(r.dbSchema ?? "—")}<br>` +
-    `key fingerprint: ${esc(r.keyFingerprint || "—")}`;
+    `service version: ${esc(r.version || "·")} · db schema: ${esc(r.dbSchema ?? "·")}<br>` +
+    `key fingerprint: ${esc(r.keyFingerprint || "·")}`;
 }
 
 /* ---------------- users ---------------- */
@@ -154,7 +154,7 @@ async function loadUsers() {
     <tr${u.active ? "" : ' class="inactive"'}>
       <td><div class="user-cell">
         ${u.picture ? `<img class="avatar" src="${esc(u.picture)}" alt="">` : ""}
-        <div>${esc(u.name || "—")}<br><span class="dim">${esc(u.email || "")}</span></div>
+        <div>${esc(u.name || "·")}<br><span class="dim">${esc(u.email || "")}</span></div>
       </div></td>
       <td><select class="role-sel" data-id="${esc(u.id)}">
         ${ROLES_LIST.map((x) => `<option value="${x}"${x === u.role ? " selected" : ""}>${x}</option>`).join("")}
@@ -223,7 +223,7 @@ function renderPlaces() {
 function siteOptions(selected) {
   return [`<option value=""${selected == null ? " selected" : ""}>any site</option>`]
     .concat(DRAFT.places.map((p, i) =>
-      `<option value="${i}"${selected === i ? " selected" : ""}>${i} — ${esc(p.name || "unnamed")}</option>`))
+      `<option value="${i}"${selected === i ? " selected" : ""}>${i} · ${esc(p.name || "unnamed")}</option>`))
     .join("");
 }
 
@@ -270,7 +270,7 @@ function renderTypes() {
         <div><label>Production site</label>
           <select class="f-site">${siteOptions(t.site ?? null)}</select></div>
         <div><label>Edition size</label>
-          <input class="f-edition" type="number" min="1" step="1" value="${t.edition ?? ""}" placeholder="—"></div>
+          <input class="f-edition" type="number" min="1" step="1" value="${t.edition ?? ""}" placeholder="500"></div>
       </div>
       <label>Colours</label>
       <div class="colors">${t.colors.map(colorRow).join("") || `<div class="msg">no colours yet</div>`}</div>
@@ -361,11 +361,11 @@ async function loadJournal() {
         <button class="cert-open" data-code="${esc(rec.code)}" title="Print the certificate">Certificate</button></td>
       <td>${esc(rec.product)}<br><span class="dim"><span class="swatch" style="background:${esc(rec.hex || "#888")}"></span>${esc(rec.colorName)}</span></td>
       <td>${String(rec.seq ?? 0).padStart(3, "0")}${rec.edition ? `<br><span class="dim">/ ${esc(rec.edition)}</span>` : ""}</td>
-      <td>${esc(rec.monthLabel || (rec.month != null ? monthLabel(rec.month) : "—"))}</td>
+      <td>${esc(rec.monthLabel || (rec.month != null ? monthLabel(rec.month) : "·"))}</td>
       <td>${esc(rec.site)}</td>
       <td>${esc(rec.checks || 0)}</td>
-      <td>${rec.owner ? esc(rec.owner.firstName + " " + rec.owner.lastName) : '<span class="dim">—</span>'}</td>
-      <td><span class="dim">${esc(rec.issuedBy || "—")}</span></td>
+      <td>${rec.owner ? esc(rec.owner.firstName + " " + rec.owner.lastName) : '<span class="dim">·</span>'}</td>
+      <td><span class="dim">${esc(rec.issuedBy || "·")}</span></td>
       ${admin ? `<td><button class="del" data-code="${esc(rec.code)}" title="Delete and free the slot">🗑</button></td>` : ""}
     </tr>`).join("");
   $("journal-table").innerHTML = head +
@@ -411,12 +411,12 @@ async function loadDiscounts() {
       <td>${d.status === "active"
         ? '<span class="st-ok">ACTIVE</span>'
         : `<span class="dim">USED${d.usedAt ? " · " + esc(d.usedAt.slice(0, 10)) : ""}</span>`}</td>
-      <td>${d.emailSent ? '<span class="st-ok">sent</span>' : '<span class="dim">—</span>'}</td>
+      <td>${d.emailSent ? '<span class="st-ok">sent</span>' : '<span class="dim">·</span>'}</td>
       <td><button class="btn mini ghost" data-token="${esc(d.token)}" data-next="${d.status === "active" ? "used" : "active"}">
         ${d.status === "active" ? "Mark used" : "Reactivate"}</button></td>
     </tr>`).join("");
   $("discounts-table").innerHTML = head +
-    (rows || '<tr><td colspan="7"><span class="dim">no discounts yet — they appear when buyers register figurines</span></td></tr>');
+    (rows || '<tr><td colspan="7"><span class="dim">no discounts yet. They appear when buyers register figurines</span></td></tr>');
   $("discounts-table").querySelectorAll("button[data-token]").forEach((b) => {
     b.onclick = async () => {
       const d = await api(`/api/admin/discounts/${encodeURIComponent(b.dataset.token)}`, {
@@ -450,7 +450,7 @@ async function loadVerifyLog() {
       <td class="dim">${esc(fmtTime(e.at))}</td>
       <td><span class="code">${esc(e.code)}</span></td>
       <td><span class="${e.status === "issued" ? "st-ok" : "st-bad"}">${esc(e.status)}</span></td>
-      <td class="dim">${esc(e.ip || "—")}</td>
+      <td class="dim">${esc(e.ip || "·")}</td>
     </tr>`).join("");
   $("verify-table").innerHTML = `<tr><th>Time</th><th>Code</th><th>Status</th><th>IP</th></tr>` +
     (rows || `<tr><td colspan="4"><span class="dim">no checks recorded</span></td></tr>`);
@@ -488,7 +488,7 @@ async function loadAuditLog() {
     const headers = PIN ? { "X-Pin": PIN } : {};
     let res;
     try { res = await fetch("/api/ledger/export.csv", { headers }); }
-    catch { setMsg("journal-msg", "network error — check the connection", "err"); return; }
+    catch { setMsg("journal-msg", "network error, check the connection", "err"); return; }
     if (!res.ok) {
       let msg = `export failed (${res.status})`;
       try { msg = (await res.json()).error || msg; } catch {}

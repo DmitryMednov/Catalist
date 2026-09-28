@@ -14,10 +14,10 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
 function fmtTime(iso) {
-  if (!iso) return "—";
+  if (!iso) return "·";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return String(iso);
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-const fmtDate = (iso) => { const s = fmtTime(iso); return s === "—" ? s : s.slice(0, 10); };
+const fmtDate = (iso) => { const s = fmtTime(iso); return s === "·" ? s : s.slice(0, 10); };

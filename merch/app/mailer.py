@@ -102,7 +102,7 @@ class Mailer:
                            percent: int, cabinet_url: str, discount_token: str) -> EmailMessage:
         """Уведомление о регистрации фигурки: скидка + ссылка в личный кабинет."""
         edition_str = f"№ {seq:03d}" + (f" / {edition}" if edition else "")
-        subject = f"Your {product} is registered — {percent}% discount inside"
+        subject = f"Your {product} is registered. Your {percent}% discount is inside"
         text = f"""Hello {first_name},
 
 Your Catalist figurine is now registered to you.
@@ -114,13 +114,13 @@ Your Catalist figurine is now registered to you.
 As a thank-you, a {percent}% loyalty discount is saved to your collection.
 Discount code: {discount_token}
 
-Open your personal collection page — your figurines and the discount QR code live there:
+Open your personal collection page. Your certificate of authenticity, your figurines and the discount QR code live there:
 
   {cabinet_url}
 
 Keep this email: the link above signs you in without a password.
 
-— Catalist
+Catalist
 https://catalist.world
 """
         html = f"""\
@@ -143,7 +143,7 @@ https://catalist.world
         <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:18px;letter-spacing:2px;margin-top:12px">{discount_token}</div>
       </div>
       <a href="{cabinet_url}" style="display:block;background:#14120E;color:#FFFFFF;text-decoration:none;text-align:center;border-radius:999px;padding:16px;font-size:16px;font-weight:700">Open my collection</a>
-      <p style="font-size:13px;color:#6B6555;line-height:1.5;margin:16px 0 0">The discount QR code for the checkout is on your collection page. This link signs you in without a password — keep this email.</p>
+      <p style="font-size:13px;color:#6B6555;line-height:1.5;margin:16px 0 0">The discount QR code for the checkout is on your collection page. This link signs you in without a password. Keep this email.</p>
     </div>
     <p style="font-size:12px;color:#6B6555;text-align:center;margin-top:18px">© Catalist · <a href="https://catalist.world" style="color:#6B6555">catalist.world</a></p>
   </div>
@@ -166,7 +166,7 @@ Here is your sign-in link for the Catalist collection page:
 
 If you did not request it, just ignore this email.
 
-— Catalist
+Catalist
 https://catalist.world
 """
         html = f"""\
@@ -175,7 +175,7 @@ https://catalist.world
     <div style="font-size:26px;font-weight:800;letter-spacing:.4px;margin-bottom:18px">CATALIST</div>
     <div style="background:#FFFFFF;border-radius:16px;padding:28px">
       <div style="font-size:22px;font-weight:800;text-transform:uppercase"><span style="font-weight:300">Sign in to</span> your collection</div>
-      <p style="font-size:16px;line-height:1.55;margin:14px 0 22px">Use the button below to open your Catalist collection — no password needed.</p>
+      <p style="font-size:16px;line-height:1.55;margin:14px 0 22px">Use the button below to open your Catalist collection. No password is needed.</p>
       <a href="{cabinet_url}" style="display:block;background:#14120E;color:#FFFFFF;text-decoration:none;text-align:center;border-radius:999px;padding:16px;font-size:16px;font-weight:700">Open my collection</a>
       <p style="font-size:13px;color:#6B6555;line-height:1.5;margin:16px 0 0">If you did not request this link, just ignore this email.</p>
     </div>

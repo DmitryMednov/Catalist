@@ -38,7 +38,7 @@ function renderLoading() {
 function renderError() {
   $("main").innerHTML = `
     <div class="pcard">
-      <p class="lead">Could not load your collection — try again.</p>
+      <p class="lead">Could not load your collection. Try again.</p>
       <button class="pill pill-secondary" id="retry-btn">Retry</button>
     </div>`;
   $("retry-btn").onclick = boot;
@@ -49,12 +49,12 @@ function renderError() {
 function renderLogin() {
   const google = GOOGLE_AUTH ? `
       <button class="pill pill-primary" id="google-btn">Sign in with Google</button>
-      <div class="or-line">— or —</div>` : "";
+      <div class="or-line">or</div>` : "";
   $("main").innerHTML = `
     <h1>Your Catalist <span class="nowrap"><b>collection</b>${SPARK}</span></h1>
     <div class="pcard">
       ${google}
-      <p class="lead">Enter the email you used when registering your figurine — we will send you a sign-in link.</p>
+      <p class="lead">Enter the email you used when registering your figurine. We will send you a sign-in link.</p>
       <label for="email-input">Email</label>
       <input id="email-input" type="email" autocomplete="email" inputmode="email"
              autocapitalize="off" spellcheck="false" placeholder="you@example.com">
@@ -80,10 +80,10 @@ async function sendLink() {
     msg.textContent = r.data.message || "Check your inbox.";
     msg.className = "note okk";
   } else if (r.status === 429) {
-    msg.textContent = (r.data && r.data.error) || "Too many requests — try again in a minute.";
+    msg.textContent = (r.data && r.data.error) || "Too many requests. Try again in a minute.";
     msg.className = "note err";
   } else {
-    msg.textContent = (r.data && r.data.error) || "Could not send the link — try again.";
+    msg.textContent = (r.data && r.data.error) || "Could not send the link. Try again.";
     msg.className = "note err";
   }
 }
@@ -127,6 +127,7 @@ function figurineCard(f) {
         <div class="fig-name">${esc(f.product)}</div>
         <div class="fig-color"><span class="swatch2" style="background:${esc(f.hex || "#B9AF98")}"></span><span>${esc(f.color)}</span></div>
         <div class="fig-rows">${rows}</div>
+        <button class="pill pill-secondary cert-pill" data-code="${esc(f.code)}">Certificate of authenticity</button>
         ${f.discount ? discountBlock(f.discount) : ""}
       </div>
     </div>`;
@@ -152,6 +153,9 @@ function renderCabinet(data) {
     await fetchJson("/api/my/logout", { method: "POST" });
     location.reload();
   };
+  document.querySelectorAll(".cert-pill").forEach((b) => {
+    b.onclick = () => openCertificate(b.dataset.code);
+  });
 }
 
 /* ---------------- загрузка ---------------- */

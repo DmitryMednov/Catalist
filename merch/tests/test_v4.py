@@ -105,6 +105,29 @@ def test_cert_api_payload_and_roles():
     assert low.status_code == 200 and low.json()["code"] == code
 
 
+def test_cert_available_to_registered_owner():
+    """Покупатель получает сертификат своей фигурки из кабинета без PIN."""
+    c = _client()
+    code = _issue(c, seq=905, type_=0, color=1)
+    c.post("/api/register", json={
+        "code": code, "firstName": "Olia", "lastName": "Kotova",
+        "dob": "1992-02-02", "email": "owner905@example.com"})
+    # cookie кабинета осталась в клиенте после регистрации; PIN не передаём
+    r = c.get(f"/api/cert/{code}")
+    assert r.status_code == 200, r.text
+    assert r.json()["product"] == "Balloon Cat" and "<svg" in r.json()["qrSvg"]
+    # чужой кабинет сертификат этого кода не открывает
+    c2 = _client()
+    code2 = _issue(c2, seq=906)
+    c2.post("/api/register", json={
+        "code": code2, "firstName": "Ira", "lastName": "Pticyna",
+        "dob": "1993-03-03", "email": "other906@example.com"})
+    assert c2.get(f"/api/cert/{code}").status_code == 401
+    # незарегистрированный код по кабинетной cookie тоже закрыт
+    code3 = _issue(c, seq=907)
+    assert TestClient(app).get(f"/api/cert/{code3}").status_code == 401
+
+
 def test_cert_api_closed_for_config_role():
     # роль config каталог видит, но журнал и сертификаты — нет
     from urllib.parse import parse_qs, urlparse

@@ -10,7 +10,7 @@ async function api(path, opts = {}) {
   const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
   let res;
   try { res = await fetch(path, { ...opts, headers }); }
-  catch { return { ok: false, error: "network error — check the connection" }; }
+  catch { return { ok: false, error: "network error, check the connection" }; }
   try { return await res.json(); }
   catch { return { ok: false, error: `server error (${res.status})` }; }
 }
@@ -55,7 +55,7 @@ async function runCheck() {
   msg.textContent = "";
   if (r.status === "malformed") {
     box.innerHTML = statusCard("warn", "Mistyped number",
-      "This combination cannot be a Catalist serial number — one of the characters is off. Compare with the certificate or the engraving and try again.");
+      "This combination cannot be a Catalist serial number. One of the characters is off. Compare with the certificate or the engraving and try again.");
     return;
   }
   if (r.status === "not_issued") {
@@ -74,7 +74,7 @@ async function runCheck() {
   }
   const kv = (k, v) => `<div class="kv"><div class="k">${k}</div><div class="v">${v}</div></div>`;
   let details = "";
-  if (r.img) details += `<img class="product-photo" src="${esc(r.img)}" alt="${esc(r.product)} — ${esc(r.color)}">`;
+  if (r.img) details += `<img class="product-photo" src="${esc(r.img)}" alt="${esc(r.product)}, ${esc(r.color)}">`;
   details += kv("Product", esc(r.product))
     + kv("Colour", `<span class="swatch" style="background:${esc(r.hex || "#888")}"></span>${esc(r.color)}`)
     + kv("Edition", `№ ${String(r.seq).padStart(3, "0")}${r.edition ? ` / ${r.edition}` : ""}`)
@@ -133,7 +133,7 @@ async function runCheck() {
       <div class="discount-card">
         <div class="dc-title">${d ? esc(String(d.percent)) + "% OFF" : "Registered"}</div>
         <div class="dc-sub">Registered to ${esc(res.owner.firstName)} ${esc(res.owner.lastName)}.
-          ${d ? "Your loyalty discount is saved to your collection — show its QR code at checkout." : ""}</div>
+          ${d ? "Your certificate of authenticity and loyalty discount are saved to your collection. Show the QR code at checkout." : "Your certificate of authenticity is saved to your collection."}</div>
         ${res.emailQueued ? '<div class="dc-note">A confirmation email with your sign-in link is on its way.</div>' : ""}
         <a class="btn light" href="${esc(res.cabinetUrl || "/my")}">Open my collection</a>
       </div>`;

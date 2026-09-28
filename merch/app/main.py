@@ -468,13 +468,20 @@ async def clear_ledger(request: Request, confirm: str = ""):
 
 @app.get("/api/cert/{code}")
 async def certificate_data(request: Request, code: str):
-    """Данные для печати сертификата подлинности — всё, что нужно странице
-    /factory, одним ответом: запись журнала, формат листа и QR (inline SVG).
-    Роли — как у журнала: сертификат печатают те, кто видит выпуск."""
-    p, denied = _guard(request, "production", "ledger")
-    if denied:
-        return denied
+    """Данные для печати сертификата подлинности — всё, что нужно странице,
+    одним ответом: запись журнала, формат листа и QR (inline SVG).
+
+    Доступ: персонал с правами журнала (сертификаты печатает производство) и
+    покупатель, на которого фигурка зарегистрирована, — из личного кабинета."""
     rec = store.find_by_code(serials.normalize(code))
+    buyer = _buyer_email(request)
+    if rec and buyer and (rec["owner"] or {}).get("email") == buyer:
+        if not limiter.allow(client_ip(request), "cabinet", 60):
+            return _err(429, "too many requests")
+    else:
+        p, denied = _guard(request, "production", "ledger")
+        if denied:
+            return denied
     if not rec:
         return _err(404, "not found")
     verify_url = f"{PUBLIC_URL}/{rec['code']}"

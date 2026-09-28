@@ -101,14 +101,14 @@ def issue_jobs(store: Storage, jobs: list[dict], month: int) -> tuple[list[dict]
             if ok:
                 issued.append(entry)
             else:
-                skipped.append(f"{job['product']} / {job['colorName']} № {seq:03d} — слот уже занят")
+                skipped.append(f"{job['product']} / {job['colorName']} № {seq:03d}: слот уже занят")
     return issued, skipped
 
 
 def render_list(issued: list[dict], month: int, public_url: str, fingerprint: str) -> str:
     """Текст для передачи производителям: коды по изделиям и цветам."""
     lines = [
-        "CATALIST — production batch of serial numbers",
+        "CATALIST production batch of serial numbers",
         f"Issued: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
         f" · month on certificate: {serials.month_label(month)}",
         f"Verify any code at: {public_url}/<CODE>  (key {fingerprint})",
@@ -119,7 +119,7 @@ def render_list(issued: list[dict], month: int, public_url: str, fingerprint: st
         g = (e["product"], e["colorName"])
         if g != group:
             group = g
-            lines.append(f"{e['product']} — {e['colorName']} · {e['site']}")
+            lines.append(f"{e['product']} · {e['colorName']} · {e['site']}")
         lines.append(f"  № {e['seq']:03d} / {e['edition']}   {e['code']}")
         if e["seq"] == e["start"] + e["count"] - 1:
             lines.append("")
@@ -128,7 +128,7 @@ def render_list(issued: list[dict], month: int, public_url: str, fingerprint: st
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Очистка тестовых данных и выпуск партии кодов (на сервере)")
-    ap.add_argument("--yes", action="store_true", help="выполнить (без него — только план)")
+    ap.add_argument("--yes", action="store_true", help="выполнить (без него только показать план)")
     ap.add_argument("--no-reset", action="store_true",
                     help="не удалять существующие данные, только каталог и партия")
     args = ap.parse_args()
@@ -145,7 +145,7 @@ def main() -> None:
     print(f"Месяц партии: {serials.month_label(month)} · всего к выпуску: {total}")
     for j in jobs:
         last = j["start"] + j["count"] - 1
-        print(f"  {j['product']} / {j['colorName']} — № {j['start']:03d}…{last:03d} из {j['edition']} ({j['site']})")
+        print(f"  {j['product']} / {j['colorName']}: № {j['start']:03d}…{last:03d} из {j['edition']} ({j['site']})")
     if not args.no_reset:
         print("Перед выпуском будут удалены: журнал, скидки, кабинеты, лог проверок.")
     if not args.yes:
